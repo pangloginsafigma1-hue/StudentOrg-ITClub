@@ -1,0 +1,79 @@
+@model IReadOnlyList<ITClubOrg.Models.AdminAccountListItem>
+@{
+    ViewData["Title"] = "Account Management";
+}
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+@if (ViewData["DatabaseError"] is string databaseError)
+{
+    <div class="alert alert-danger" role="alert">@databaseError</div>
+}
+
+<section class="page-card">
+    <div class="members-toolbar">
+        <div>
+            <h2>Administrator Accounts</h2>
+            <p>Create division admins and manage their division access.</p>
+        </div>
+        <div class="member-actions">
+            <a class="btn btn-primary" asp-controller="AdminAccounts" asp-action="Create">Add Account</a>
+        </div>
+    </div>
+
+    @if (Model.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table somams-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Username</th>
+                        <th scope="col">Email</th>
+                        <th scope="col">Role</th>
+                        <th scope="col">Division</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" class="actions-heading">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var account in Model)
+                    {
+                        <tr>
+                            <td>@account.FullName</td>
+                            <td>@account.Username</td>
+                            <td>@account.Email</td>
+                            <td>@(account.Role == "SuperAdmin" ? "Super Admin" : "Division Admin")</td>
+                            <td>@(account.DivisionName ?? "All divisions")</td>
+                            <td>
+                                <span class="status-badge @(account.IsActive ? "status-active" : "status-inactive")">
+                                    @(account.IsActive ? "Active" : "Disabled")
+                                </span>
+                            </td>
+                            <td class="actions-cell">
+                                <a class="btn btn-outline-primary btn-sm"
+                                   asp-controller="AdminAccounts"
+                                   asp-action="Edit"
+                                   asp-route-id="@account.AdminId">Manage</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="member-list-footer">
+            <strong>Total accounts: @Model.Count</strong>
+            <span>At least one active super admin must remain enabled.</span>
+        </div>
+    }
+    else if (ViewData["DatabaseError"] is null)
+    {
+        <p class="empty-state">No administrator accounts were found.</p>
+    }
+</section>

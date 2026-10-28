@@ -1,0 +1,233 @@
+@model ITClubOrg.Models.DashboardViewModel
+@using System.Globalization
+@{
+    ViewData["Title"] = "Dashboard";
+    var monthCount = Model.MonthlyTrend.Count;
+    const double chartWidth = 760;
+    const double chartHeight = 250;
+    const double chartLeft = 44;
+    const double chartRight = 16;
+    const double chartTop = 18;
+    const double chartBottom = 42;
+    var plotWidth = chartWidth - chartLeft - chartRight;
+    var plotHeight = chartHeight - chartTop - chartBottom;
+    var maxValue = Math.Max(1, Model.MonthlyTrend
+        .SelectMany(point => new[] { point.NewMembers, point.Activities })
+        .DefaultIfEmpty(0)
+        .Max());
+    string X(int index) => (chartLeft + (monthCount <= 1 ? 0 : (double)index / (monthCount - 1) * plotWidth))
+        .ToString("0.##", CultureInfo.InvariantCulture);
+    string Y(int value) => (chartTop + plotHeight - (double)value / maxValue * plotHeight)
+        .ToString("0.##", CultureInfo.InvariantCulture);
+    var membersLine = string.Join(" ", Model.MonthlyTrend.Select((point, index) => $"{X(index)},{Y(point.NewMembers)}"));
+    var activitiesLine = string.Join(" ", Model.MonthlyTrend.Select((point, index) => $"{X(index)},{Y(point.Activities)}"));
+}
+
+<section class="welcome-row">
+    <div>
+        <h2>Welcome, @Model.AdminName!</h2>
+        <p>Current system snapshot · Updated @DateTime.Now.ToString("MMM d, yyyy h:mm tt")</p>
+    </div>
+</section>
+
+@if (Model.DatabaseError is not null)
+{
+    <div class="alert alert-warning database-alert" role="alert">@Model.DatabaseError</div>
+}
+
+<div class="dashboard-top-grid dashboard-metrics-grid">
+    <section class="stat-card page-card dashboard-metric-card">
+        <span class="stat-accent" aria-hidden="true"></span>
+        <div class="stat-icon"><img src="~/images/ic_members.png" alt="" /></div>
+        <div class="stat-content">
+            <span class="stat-label">Total members</span>
+            <strong class="stat-number">@(Model.MemberCount?.ToString("N0") ?? "—")</strong>
+        </div>
+        <span class="metric-note">@(Model.ActiveMemberCount?.ToString("N0") ?? "—") active</span>
+    </section>
+
+    <section class="stat-card page-card dashboard-metric-card">
+        <span class="stat-accent" aria-hidden="true"></span>
+        <div class="stat-icon"><img src="~/images/ic_membership.png" alt="" /></div>
+        <div class="stat-content">
+            <span class="stat-label">New members · 30 days</span>
+            <strong class="stat-number">@(Model.NewMemberCount30Days?.ToString("N0") ?? "—")</strong>
+        </div>
+        <span class="metric-note">Recent registrations</span>
+    </section>
+
+    <section class="stat-card page-card dashboard-metric-card">
+        <span class="stat-accent" aria-hidden="true"></span>
+        <div class="stat-icon"><img src="~/images/ic_activities.png" alt="" /></div>
+        <div class="stat-content">
+            <span class="stat-label">Total activities</span>
+            <strong class="stat-number">@(Model.ActivityCount?.ToString("N0") ?? "—")</strong>
+        </div>
+        <span class="metric-note">@(Model.AttendanceRecordedCount?.ToString("N0") ?? "—") with attendance</span>
+    </section>
+
+    <section class="stat-card page-card dashboard-metric-card">
+        <span class="stat-accent" aria-hidden="true"></span>
+        <div class="stat-icon"><img src="~/images/ic_attendance.png" alt="" /></div>
+        <div class="stat-content">
+            <span class="stat-label">Upcoming activities</span>
+            <strong class="stat-number">@(Model.UpcomingActivityCount?.ToString("N0") ?? "—")</strong>
+        </div>
+        <span class="metric-note">Scheduled and pending</span>
+    </section>
+</div>
+
+<section class="page-card dashboard-chart-card">
+    <div class="section-heading">
+        <div>
+            <h2>Organization activity over time</h2>
+            <p>New member registrations and scheduled activity dates by month · last 12 months</p>
+        </div>
+    </div>
+    @if (monthCount > 0)
+    {
+        <div class="dashboard-chart-wrap">
+            <svg class="dashboard-chart" viewBox="0 0 @chartWidth @chartHeight" role="img"
+                 aria-label="Monthly trend chart showing new members and activities over the last 12 months">
+                @for (var tick = 0; tick <= 4; tick++)
+                {
+                    var tickValue = (int)Math.Round((double)maxValue * tick / 4);
+                    var tickY = chartTop + plotHeight - (double)tick / 4 * plotHeight;
+                    <line x1="@chartLeft" y1="@tickY.ToString("0.##", CultureInfo.InvariantCulture)"
+                          x2="@(chartWidth - chartRight)" y2="@tickY.ToString("0.##", CultureInfo.InvariantCulture)"
+                          class="chart-grid-line" />
+                    @Html.Raw($"<text x=\"{chartLeft - 10}\" y=\"{(tickY + 4).ToString("0.##", CultureInfo.InvariantCulture)}\" class=\"chart-axis-label\" text-anchor=\"end\">{tickValue}</text>")
+                }
+                <polyline points="@membersLine" class="chart-line chart-members-line" />
+                <polyline points="@activitiesLine" class="chart-line chart-activities-line" />
+                @for (var i = 0; i < monthCount; i++)
+                {
+                    var point = Model.MonthlyTrend[i];
+                    <circle cx="@X(i)" cy="@Y(point.NewMembers)" r="4" class="chart-point chart-members-point">
+                        <title>@point.Month.ToString("MMM yyyy"): @point.NewMembers new members</title>
+                    </circle>
+                    <circle cx="@X(i)" cy="@Y(point.Activities)" r="4" class="chart-point chart-activities-point">
+                        <title>@point.Month.ToString("MMM yyyy"): @point.Activities activities</title>
+                    </circle>
+                    @if (i % 2 == 0 || i == monthCount - 1)
+                    {
+                        @Html.Raw($"<text x=\"{X(i)}\" y=\"{chartHeight - 12}\" class=\"chart-axis-label\" text-anchor=\"middle\">{point.Month.ToString("MMM")}</text>")
+                    }
+                }
+            </svg>
+        </div>
+        <div class="chart-legend" aria-hidden="true">
+            <span><i class="chart-legend-dot chart-members-dot"></i>New members</span>
+            <span><i class="chart-legend-dot chart-activities-dot"></i>Activities</span>
+        </div>
+    }
+    else if (Model.DatabaseError is null)
+    {
+        <p class="empty-state">Trend data is not available yet.</p>
+    }
+</section>
+
+<div class="dashboard-lists-grid">
+    <section class="page-card dashboard-list-card">
+        <div class="section-heading">
+            <div>
+                <h2>Recent activities</h2>
+                <p>Most recently held activities.</p>
+            </div>
+            <a class="text-link" asp-controller="Activities" asp-action="Index">All activities <span aria-hidden="true">→</span></a>
+        </div>
+        @if (Model.RecentActivities.Count > 0)
+        {
+            <div class="dashboard-record-list">
+                @foreach (var activity in Model.RecentActivities)
+                {
+                    <article class="dashboard-record">
+                        <div>
+                            <strong>@activity.ActivityName</strong>
+                            <span>@activity.Location@(activity.DivisionName is null ? "" : $" · {activity.DivisionName}")</span>
+                        </div>
+                        <div class="dashboard-record-meta">
+                            <time datetime="@activity.ActivityDate.ToString("yyyy-MM-dd")">@activity.ActivityDate.ToString("MMM d, yyyy")</time>
+                            <span class="activity-status status-@activity.Status.ToLowerInvariant()">@activity.Status</span>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+        else if (Model.DatabaseError is null)
+        {
+            <p class="empty-state">No past activities have been recorded.</p>
+        }
+    </section>
+
+    <section class="page-card dashboard-list-card">
+        <div class="section-heading">
+            <div>
+                <h2>New members</h2>
+                <p>Latest member records by join date.</p>
+            </div>
+            <a class="text-link" asp-controller="Members" asp-action="Index">All members <span aria-hidden="true">→</span></a>
+        </div>
+        @if (Model.RecentMembers.Count > 0)
+        {
+            <div class="dashboard-record-list">
+                @foreach (var member in Model.RecentMembers)
+                {
+                    <article class="dashboard-record">
+                        <div>
+                            <strong>@member.StudentName</strong>
+                            <span>@member.MemberId · @member.Course@(member.DivisionName is null ? "" : $" · {member.DivisionName}")</span>
+                        </div>
+                        <time datetime="@member.DateJoined.ToString("yyyy-MM-dd")">@member.DateJoined.ToString("MMM d, yyyy")</time>
+                    </article>
+                }
+            </div>
+        }
+        else if (Model.DatabaseError is null)
+        {
+            <p class="empty-state">No member records have been added yet.</p>
+        }
+    </section>
+</div>
+
+<section class="upcoming-card page-card">
+    <div class="section-heading">
+        <div>
+            <h2>Upcoming activities</h2>
+            <p>Next scheduled activities.</p>
+        </div>
+        <a class="text-link" asp-controller="Activities" asp-action="Index">All activities <span aria-hidden="true">→</span></a>
+    </div>
+    @if (Model.UpcomingActivities.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table somams-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Activity</th>
+                        <th scope="col">Location</th>
+                        <th scope="col">Division</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var activity in Model.UpcomingActivities)
+                    {
+                        <tr>
+                            <td>@activity.ActivityDate.ToString("MMM dd, yyyy")</td>
+                            <td>@activity.ActivityName</td>
+                            <td>@activity.Location</td>
+                            <td>@(activity.DivisionName ?? "Unassigned")</td>
+                            <td>@activity.Status</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else if (Model.DatabaseError is null)
+    {
+        <p class="empty-state">No upcoming activities.</p>
+    }
+</section>

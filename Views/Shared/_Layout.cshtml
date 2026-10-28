@@ -1,0 +1,116 @@
+@using ITClubOrg.Services
+@{
+    var activeSection = ViewData["ActiveSection"] as string ?? "dashboard";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000080" />
+    <title>@ViewData["Title"] - SOMAMS</title>
+    <link rel="icon" type="image/png" href="~/images/logo.png" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="app-shell">
+    <a class="skip-link" href="#mainContent">Skip to content</a>
+    <aside class="sidebar">
+        <a class="brand" asp-controller="Dashboard" asp-action="Index" aria-label="SOMAMS dashboard">
+            <img src="~/images/logo.png" alt="" />
+            <span class="brand-copy">
+                <strong>SOMAMS</strong>
+                <small>Student Organization</small>
+            </span>
+        </a>
+
+        <nav class="sidebar-nav" aria-label="Main navigation">
+            @foreach (var item in NavigationCatalog.Items)
+            {
+                if (item.Key == "admin-accounts" && !User.IsInRole("SuperAdmin"))
+                {
+                    continue;
+                }
+
+                var controller = item.Key switch
+                {
+                    "dashboard" => "Dashboard",
+                    "members" => "Members",
+                    "membership" => "Membership",
+                    "activities" => "Activities",
+                    "attendance" => "Attendance",
+                    "reports" => "Reports",
+                    "settings" => "Settings",
+                    "admin-accounts" => "AdminAccounts",
+                    _ => "Modules"
+                };
+                var action = item.Key switch
+                {
+                    "dashboard" or "members" => "Index",
+                    "membership" => "Create",
+                    "activities" => "Index",
+                    "attendance" => "Index",
+                    "reports" => "Index",
+                    "settings" => "Index",
+                    "admin-accounts" => "Index",
+                    _ => "Index"
+                };
+                var routeSection = controller == "Modules" ? item.Key : null;
+                <a class="sidebar-link @(activeSection == item.Key ? "active" : "")"
+                   asp-controller="@controller"
+                   asp-action="@action"
+                   asp-route-section="@routeSection"
+                   aria-current="@(activeSection == item.Key ? "page" : null)">
+                    <span>@item.Title</span>
+                </a>
+            }
+        </nav>
+
+        <button class="sidebar-link sidebar-logout" type="button" data-bs-toggle="modal" data-bs-target="#logoutModal">
+            <span>Logout</span>
+        </button>
+    </aside>
+
+    <main class="main-content" id="mainContent">
+        <header class="page-header">
+            <div>
+                <h1>@ViewData["Title"]</h1>
+                <p>@ViewData["Description"]</p>
+                <span class="title-accent" aria-hidden="true"></span>
+            </div>
+            <div class="signed-in">
+                <span>Signed in as</span>
+                <strong>@User.Identity?.Name</strong>
+                <small>@(User.FindFirst("division_name")?.Value ?? "Super Admin")</small>
+            </div>
+        </header>
+
+        <div class="page-body">
+            @RenderBody()
+        </div>
+    </main>
+
+    <div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content logout-modal">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="logoutModalLabel">Confirm Logout</h2>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to log out of SOMAMS?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                    <form asp-controller="Auth" asp-action="Logout" method="post">
+                        <button class="btn btn-danger" type="submit">Yes, Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

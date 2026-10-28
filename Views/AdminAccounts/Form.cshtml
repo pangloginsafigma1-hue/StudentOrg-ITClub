@@ -1,0 +1,86 @@
+@model ITClubOrg.Models.AdminAccountFormViewModel
+@{
+    ViewData["Title"] = "Account Management";
+}
+
+<section class="settings-card page-card">
+    <div class="settings-heading">
+        <div>
+            <h2>@(Model.IsEdit ? "Manage Administrator" : "Create Administrator")</h2>
+            <p>Only the super admin can manage administrator access.</p>
+        </div>
+    </div>
+    <form asp-controller="AdminAccounts" asp-action="Save" method="post">
+        <input asp-for="AdminId" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger validation-summary-errors" role="alert"></div>
+        <div class="settings-fields">
+            <div class="form-field">
+                <label asp-for="FullName"></label>
+                <input asp-for="FullName" class="form-control" autocomplete="name" />
+                <span asp-validation-for="FullName" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Username"></label>
+                <input asp-for="Username" class="form-control" autocomplete="username" />
+                <span asp-validation-for="Username" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Email"></label>
+                <input asp-for="Email" class="form-control" autocomplete="email" />
+                <span asp-validation-for="Email" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Role"></label>
+                <select asp-for="Role" class="form-select" data-admin-role>
+                    <option value="DivisionAdmin">Division Admin</option>
+                    <option value="SuperAdmin">Super Admin</option>
+                </select>
+                <span asp-validation-for="Role" class="field-error"></span>
+            </div>
+            <div class="form-field" data-admin-division-field>
+                <label asp-for="DivisionId"></label>
+                <select asp-for="DivisionId" class="form-select">
+                    <option value="">Choose a division</option>
+                    @foreach (var division in Model.Divisions)
+                    {
+                        <option value="@division.DivisionId">@division.Name</option>
+                    }
+                </select>
+                <span asp-validation-for="DivisionId" class="field-error"></span>
+            </div>
+            @if (Model.IsEdit)
+            {
+                <div class="form-field">
+                    <label asp-for="IsActive"></label>
+                    <div class="form-check">
+                        <input asp-for="IsActive" class="form-check-input" />
+                        <label asp-for="IsActive" class="form-check-label"></label>
+                    </div>
+                    <span class="field-hint">Disabled accounts cannot sign in. Disabling or changing your own access will end your current session.</span>
+                </div>
+            }
+            <hr />
+            <h3>@(Model.IsEdit ? "Reset Password (optional)" : "Set Temporary Password")</h3>
+            <p class="settings-hint">Use at least 12 characters. Passwords are stored as BCrypt hashes.</p>
+            <div class="form-field">
+                <label asp-for="Password"></label>
+                <input asp-for="Password" class="form-control" autocomplete="new-password"
+                       placeholder="@(Model.IsEdit ? "Leave blank to keep current password" : null)" />
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="ConfirmPassword"></label>
+                <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+            </div>
+        </div>
+        <div class="settings-actions">
+            <a class="btn btn-outline-primary" asp-controller="AdminAccounts" asp-action="Index">Cancel</a>
+            <button class="btn btn-primary" type="submit">Save Account</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <script src="~/js/site.js" asp-append-version="true"></script>
+}

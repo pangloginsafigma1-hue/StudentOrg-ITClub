@@ -1,0 +1,165 @@
+@model ITClubOrg.Models.AttendanceViewModel
+@{
+    ViewData["Title"] = "Attendance";
+    var presentCount = Model.Members.Count(member => member.IsPresent);
+    var absentCount = Model.Members.Count - presentCount;
+}
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+@if (Model.DatabaseError is not null)
+{
+    <div class="alert alert-warning" role="alert">@Model.DatabaseError</div>
+}
+
+<section class="page-card attendance-card">
+    <div class="attendance-toolbar">
+        <form asp-controller="Attendance" asp-action="Index" method="get" class="attendance-selection">
+            <div class="form-field">
+                <label for="activityId">Select Activity</label>
+                <select id="activityId" name="activityId" class="form-select" data-attendance-activity-select>
+                    <option value="">Choose an activity</option>
+                    @foreach (var activity in Model.Activities)
+                    {
+                        <option value="@activity.ActivityId" selected="@(Model.SelectedActivityId == activity.ActivityId ? "selected" : null)">
+                            @activity.ActivityName — @activity.ActivityDate.ToString("MMM dd, yyyy")
+                        </option>
+                    }
+                </select>
+            </div>
+            @if (Model.HasActivity)
+            {
+                <div class="form-field attendance-search-field">
+                    <label for="attendanceSearch">Search members</label>
+                    <input id="attendanceSearch" class="form-control" maxlength="100" placeholder="Search attendance records" />
+                </div>
+                <button class="btn btn-search attendance-search-button" type="button" data-attendance-search>Search</button>
+            }
+        </form>
+    </div>
+
+    @if (!Model.HasActivity)
+    {
+        <p class="attendance-hint">
+            @(Model.Activities.Count == 0
+                ? "Attendance is already recorded for every activity."
+                : "Only activities without recorded attendance are listed.")
+        </p>
+        @if (Model.Activities.Count == 0 && Model.DatabaseError is null)
+        {
+            <div class="empty-state attendance-empty">
+                <img src="~/images/ic_attendance.png" alt="" />
+                <span>There are no activities waiting for attendance.</span>
+            </div>
+        }
+    }
+    else if (Model.Members.Count == 0)
+    {
+        <p class="attendance-hint">Only active members are included in the attendance roster.</p>
+        <div class="empty-state attendance-empty">No active members are available for this activity.</div>
+    }
+    else
+    {
+        <form asp-controller="Attendance" asp-action="Save" method="post" id="attendanceForm">
+            <input type="hidden" name="activityId" value="@Model.SelectedActivityId" />
+            <div class="attendance-heading">
+                <div>
+                    <h2>@Model.SelectedActivityName</h2>
+                    <p>Mark each active member as present. Unchecked members will be recorded as absent.</p>
+                </div>
+                <div class="attendance-controls">
+                    <div class="attendance-summary" aria-live="polite">
+                        <span class="present-count"><strong id="presentCount">@presentCount</strong> Present</span>
+                        <span class="absent-count"><strong id="absentCount">@absentCount</strong> Absent</span>
+                    </div>
+                    <div class="attendance-bulk-actions" role="group" aria-label="Bulk attendance actions">
+                        <button class="btn btn-outline-primary" type="button" data-attendance-set-all="present">
+                            Mark all present
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" data-attendance-set-all="absent">
+                            Mark all absent
+                        </button>
+                    </div>
+                    <span class="attendance-bulk-hint">Applies to all members, including those hidden by search.</span>
+                </div>
+            </div>
+
+            <div class="table-responsive attendance-table-wrap">
+                <table class="table somams-table attendance-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">ID</th>
+                            <th scope="col">Student Name</th>
+                            <th scope="col" class="attendance-check-heading">Attendance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceRoster">
+                        @foreach (var member in Model.Members)
+                        {
+                            <tr data-attendance-row data-member-search="@($"{member.MemberId} {member.StudentName}")">
+                                <td>@member.MemberId</td>
+                                <td>@member.StudentName</td>
+                                <td class="attendance-check-cell">
+                                    <label class="attendance-checkbox">
+                                        <input class="attendance-member-checkbox" type="checkbox" name="presentMemberIds"
+                                               value="@member.MemberId" checked="@(member.IsPresent ? "checked" : null)" />
+                                        <span class="visually-hidden">Attendance for: @member.StudentName</span>
+                                        <span class="attendance-member-state @(member.IsPresent ? "is-present" : "is-absent")"
+                                              data-attendance-state aria-hidden="true">
+                                            @(member.IsPresent ? "Present" : "Absent")
+                                        </span>
+                                    </label>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <p class="empty-state attendance-no-results" data-attendance-no-results hidden>No members match your search.</p>
+            </div>
+
+            <div class="attendance-footer">
+                <span>After saving, attendance is locked and the activity leaves this list.</span>
+                <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#saveAttendanceModal">
+                    Save Attendance
+                </button>
+            </div>
+
+            <div class="modal fade" id="saveAttendanceModal" tabindex="-1"
+                 aria-labelledby="saveAttendanceModalTitle" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content logout-modal">
+                        <div class="modal-header">
+                            <h2 class="modal-title" id="saveAttendanceModalTitle">Save Attendance</h2>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Save the attendance for <strong>@Model.SelectedActivityName</strong>?</p>
+                            <p class="delete-warning">Once saved, this activity will no longer appear in this list and its attendance cannot be taken again.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                            <button class="btn btn-primary" type="submit">Yes, Save Attendance</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    }
+
+    @if (Model.HasActivity)
+    {
+        <p class="attendance-hint attendance-bottom-hint">
+            Only activities without recorded attendance are listed.
+        </p>
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/site.js" asp-append-version="true"></script>
+}

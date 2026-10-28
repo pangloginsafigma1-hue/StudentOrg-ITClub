@@ -1,0 +1,170 @@
+@model ITClubOrg.Models.ReportsViewModel
+@{
+    ViewData["Title"] = "Reports";
+}
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+@if (Model.DatabaseError is not null)
+{
+    <div class="alert alert-warning" role="alert">@Model.DatabaseError</div>
+}
+
+<section class="report-grid" aria-label="Available reports">
+    <button class="report-card page-card" type="button" data-bs-toggle="modal" data-bs-target="#membersReportModal">
+        <img src="~/images/ic_members.png" alt="" />
+        <span>
+            <strong>List of Organization Members</strong>
+            <small>Export all members or choose filters.</small>
+        </span>
+        <span class="report-arrow" aria-hidden="true">→</span>
+    </button>
+    <button class="report-card page-card" type="button" data-bs-toggle="modal" data-bs-target="#membersReportModal">
+        <img src="~/images/ic_membership.png" alt="" />
+        <span>
+            <strong>Active and Inactive Members</strong>
+            <small>Filter by member, position, and status.</small>
+        </span>
+        <span class="report-arrow" aria-hidden="true">→</span>
+    </button>
+    <button class="report-card page-card" type="button" data-bs-toggle="modal" data-bs-target="#activitiesReportModal">
+        <img src="~/images/ic_activities.png" alt="" />
+        <span>
+            <strong>List of Activities</strong>
+            <small>Export activities within a date range.</small>
+        </span>
+        <span class="report-arrow" aria-hidden="true">→</span>
+    </button>
+    <button class="report-card page-card" type="button" data-bs-toggle="modal" data-bs-target="#attendanceReportModal">
+        <img src="~/images/ic_attendance.png" alt="" />
+        <span>
+            <strong>Activity Attendance Report</strong>
+            <small>Export attendance for a recorded activity.</small>
+        </span>
+        <span class="report-arrow" aria-hidden="true">→</span>
+    </button>
+</section>
+
+<div class="modal fade" id="membersReportModal" tabindex="-1" aria-labelledby="membersReportModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content report-modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="membersReportModalTitle">Export Members Report</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post">
+                <div class="modal-body">
+                    <p>Export the full organization list or narrow the report using the filters below.</p>
+                    <div class="form-field">
+                        <label for="memberId">Member</label>
+                        <select id="memberId" name="memberId" class="form-select">
+                            <option value="">All members</option>
+                            @foreach (var member in Model.Members)
+                            {
+                                <option value="@member.MemberId">@member.StudentName (@member.MemberId)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="position">Position</label>
+                        <select id="position" name="position" class="form-select">
+                            <option value="">All positions</option>
+                            @foreach (var position in Model.Positions)
+                            {
+                                <option value="@position">@position</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="status">Status</label>
+                        <select id="status" name="status" class="form-select">
+                            <option value="">All statuses</option>
+                            @foreach (var status in Model.Statuses)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer report-modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-success" type="submit" formaction="@Url.Action("ExportAllMembers", "Reports")">Export All</button>
+                    <button class="btn btn-primary" type="submit" formaction="@Url.Action("ExportFilteredMembers", "Reports")">Export Filtered</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="activitiesReportModal" tabindex="-1" aria-labelledby="activitiesReportModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content report-modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="activitiesReportModalTitle">Export Activities Report</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="Reports" asp-action="ExportActivities" method="post">
+                <div class="modal-body">
+                    <p>Select the activity dates to include in the Word report.</p>
+                    <div class="form-field">
+                        <label for="fromDate">From</label>
+                        <input id="fromDate" name="fromDate" type="date" class="form-control" value="@Model.FromDate.ToString("yyyy-MM-dd")" required />
+                    </div>
+                    <div class="form-field">
+                        <label for="toDate">To</label>
+                        <input id="toDate" name="toDate" type="date" class="form-control" value="@Model.ToDate.ToString("yyyy-MM-dd")" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-success" type="submit">Export Activities</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="attendanceReportModal" tabindex="-1" aria-labelledby="attendanceReportModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content report-modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="attendanceReportModalTitle">Export Attendance Report</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="Reports" asp-action="ExportAttendance" method="post">
+                <div class="modal-body">
+                    @if (Model.RecordedActivities.Count == 0)
+                    {
+                        <p class="empty-state">No attendance has been recorded yet. Save attendance for an activity first.</p>
+                    }
+                    else
+                    {
+                        <div class="form-field">
+                            <label for="activityId">Activity</label>
+                            <select id="activityId" name="activityId" class="form-select" required>
+                                <option value="">Choose an activity</option>
+                                @foreach (var activity in Model.RecordedActivities)
+                                {
+                                    <option value="@activity.ActivityId">@activity.ActivityName (@activity.ActivityDate.ToString("MMM d, yyyy"))</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                    @if (Model.RecordedActivities.Count > 0)
+                    {
+                        <button class="btn btn-success" type="submit">Export Attendance</button>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

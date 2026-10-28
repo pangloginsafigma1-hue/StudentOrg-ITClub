@@ -1,0 +1,204 @@
+using ITClubOrg.Models;
+using MySqlConnector;
+
+namespace ITClubOrg.Services;
+
+public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) : IReportsRepository
+{
+    public async Task<IReadOnlyList<ReportMemberOption>> GetMembersAsync(
+        int? divisionId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            "SELECT member_id, student_name FROM members WHERE (@divisionId IS NULL OR division_id = @divisionId) ORDER BY student_name",
+            connection);
+        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var members = new List<ReportMemberOption>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            members.Add(new ReportMemberOption
+            {
+                MemberId = reader.GetString("member_id"),
+                StudentName = reader.GetString("student_name")
+            });
+        }
+
+        return members;
+    }
+
+    public async Task<IReadOnlyList<ReportActivityOption>> GetRecordedActivitiesAsync(
+        int? divisionId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            """
+            SELECT activity_id, activity_name, activity_date
+            FROM activities
+            WHERE attendance_done = 1
+              AND (@divisionId IS NULL OR division_id = @divisionId)
+            ORDER BY activity_date DESC, activity_name
+            """,
+            connection);
+        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var activities = new List<ReportActivityOption>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            activities.Add(new ReportActivityOption
+            {
+                ActivityId = reader.GetInt32("activity_id"),
+                ActivityName = reader.GetString("activity_name"),
+                ActivityDate = reader.GetDateTime("activity_date")
+            });
+        }
+
+        return activities;
+    }
+
+    public async Task<ReportTable> GetMembersReportAsync(
+        string? memberId,
+        string? position,
+        string? status,
+        int? divisionId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            """
+            SELECT member_id, student_name, course, year_level, position, status, date_joined
+            FROM members
+            WHERE (@memberId IS NULL OR member_id = @memberId)
+              AND (@position IS NULL OR position = @position)
+              AND (@status IS NULL OR status = @status)
+              AND (@divisionId IS NULL OR division_id = @divisionId)
+            ORDER BY student_name
+            """,
+            connection);
+        command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = (object?)memberId ?? DBNull.Value;
+        command.Parameters.Add("@position", MySqlDbType.VarChar, 50).Value = (object?)position ?? DBNull.Value;
+        command.Parameters.Add("@status", MySqlDbType.VarChar, 8).Value = (object?)status ?? DBNull.Value;
+        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var rows = new List<IReadOnlyList<string>>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add([
+                reader.GetString("member_id"),
+                reader.GetString("student_name"),
+                reader.GetString("course"),
+                reader.GetString("year_level"),
+                reader.GetString("position"),
+                reader.GetString("status"),
+                reader.GetDateTime("date_joined").ToString("MMM d, yyyy")
+            ]);
+        }
+
+        return new ReportTable
+        {
+            Headers = ["ID", "Student Name", "Course", "Year Level", "Position", "Status", "Date Joined"],
+            Rows = rows
+        };
+    }
+
+    public async Task<ReportTable> GetActivitiesReportAsync(
+        DateTime fromDate,
+        DateTime toDate,
+        int? divisionId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            """
+            SELECT activity_name, activity_date, location, status,
+                   CASE WHEN attendance_done = 1 THEN 'Recorded' ELSE 'Not yet' END AS attendance,
+                   COALESCE(description, '') AS description
+            FROM activities
+            WHERE activity_date BETWEEN @fromDate AND @toDate
+              AND (@divisionId IS NULL OR division_id = @divisionId)
+            ORDER BY activity_date, activity_name
+            """,
+            connection);
+        command.Parameters.Add("@fromDate", MySqlDbType.Date).Value = fromDate.Date;
+        command.Parameters.Add("@toDate", MySqlDbType.Date).Value = toDate.Date;
+        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var rows = new List<IReadOnlyList<string>>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add([
+                reader.GetString("activity_name"),
+                reader.GetDateTime("activity_date").ToString("MMM d, yyyy"),
+                reader.GetString("location"),
+                reader.GetString("status"),
+                reader.GetString("attendance"),
+                reader.GetString("description")
+            ]);
+        }
+
+        return new ReportTable
+        {
+            Headers = ["Activity", "Date", "Location", "Status", "Attendance", "Description"],
+            Rows = rows
+        };
+    }
+
+    public async Task<ReportTable?> GetAttendanceReportAsync(
+        int activityId,
+        int? divisionId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            """
+            SELECT m.member_id, m.student_name, m.course,
+                   CASE WHEN a.is_present = 1 THEN 'Present' ELSE 'Absent' END AS attendance
+            FROM activities activity
+            JOIN members m ON m.status = 'Active'
+                 AND (activity.division_id IS NULL OR m.division_id = activity.division_id)
+            LEFT JOIN attendance a ON a.member_id = m.member_id AND a.activity_id = activity.activity_id
+            WHERE activity.activity_id = @activityId
+              AND activity.attendance_done = 1
+              AND (@divisionId IS NULL OR activity.division_id = @divisionId)
+            ORDER BY m.student_name
+            """,
+            connection);
+        command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
+        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        var rows = new List<IReadOnlyList<string>>();
+        do
+        {
+            rows.Add([
+                reader.GetString("member_id"),
+                reader.GetString("student_name"),
+                reader.GetString("course"),
+                reader.GetString("attendance")
+            ]);
+        }
+        while (await reader.ReadAsync(cancellationToken));
+
+        return new ReportTable
+        {
+            Headers = ["ID", "Student Name", "Course", "Attendance"],
+            Rows = rows
+        };
+    }
+}

@@ -1,0 +1,117 @@
+@model ITClubOrg.Models.MemberListViewModel
+@{
+    ViewData["Title"] = "Members";
+}
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+@if (Model.DatabaseError is not null)
+{
+    <div class="alert alert-warning" role="alert">@Model.DatabaseError</div>
+}
+
+<section class="page-card members-card">
+    <div class="members-toolbar">
+        <form asp-controller="Members" asp-action="Index" method="get" class="member-search">
+            <label class="visually-hidden" for="memberSearch">Search members</label>
+            <input id="memberSearch" name="search" class="form-control" value="@Model.Search" maxlength="100" placeholder="Search Member" />
+            <button class="btn btn-search" type="submit">Search</button>
+        </form>
+        <div class="member-actions">
+            <a class="btn btn-success" asp-controller="Members" asp-action="Export" asp-route-search="@Model.Search">Export to Word</a>
+            <a class="btn btn-primary" asp-controller="Membership" asp-action="Create">Add Member</a>
+        </div>
+    </div>
+
+    @if (Model.Members.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table somams-table members-table">
+                <thead>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">Student Name</th>
+                        <th scope="col">Division</th>
+                        <th scope="col">Course</th>
+                        <th scope="col">Year Level</th>
+                        <th scope="col">Position</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" class="actions-heading">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var member in Model.Members)
+                    {
+                        <tr>
+                            <td>@member.MemberId</td>
+                            <td>@member.StudentName</td>
+                            <td>@(member.DivisionName ?? "Unassigned (super admin only)")</td>
+                            <td>@member.Course</td>
+                            <td>@member.YearLevel</td>
+                            <td>@member.Position</td>
+                            <td><span class="status-badge @(member.Status == "Active" ? "status-active" : "status-inactive")">@member.Status</span></td>
+                            <td class="actions-cell">
+                                <a class="icon-action" asp-controller="Membership" asp-action="Edit" asp-route-id="@member.MemberId"
+                                   aria-label="Edit @member.StudentName" title="Edit this member">
+                                    <img src="~/images/ic_edit.png" alt="" />
+                                </a>
+                                <button class="icon-action delete-action" type="button"
+                                        data-delete-member
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deleteMemberModal"
+                                        data-member-id="@member.MemberId"
+                                        data-member-name="@member.StudentName"
+                                        aria-label="Delete @member.StudentName"
+                                        title="Delete this member">
+                                    <img src="~/images/ic_delete.png" alt="" />
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else if (Model.DatabaseError is null)
+    {
+        <p class="empty-state">@(Model.Search.Length == 0 ? "No members have been added yet." : "No members match your search.")</p>
+    }
+
+    <div class="member-list-footer">
+        <strong>Total members: @Model.Members.Count</strong>
+        <span>Use the pencil to edit and the bin to delete a member.</span>
+    </div>
+</section>
+
+<div class="modal fade" id="deleteMemberModal" tabindex="-1" aria-labelledby="deleteMemberModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content logout-modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="deleteMemberModalTitle">Confirm Delete</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteMemberMessage">Delete this member?</p>
+                <p class="delete-warning">Their attendance records will also be deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-controller="Members" asp-action="Delete" method="post">
+                    <input type="hidden" name="memberId" id="deleteMemberId" />
+                    <input type="hidden" name="search" value="@Model.Search" />
+                    <button class="btn btn-danger" type="submit">Yes, Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/site.js" asp-append-version="true"></script>
+}

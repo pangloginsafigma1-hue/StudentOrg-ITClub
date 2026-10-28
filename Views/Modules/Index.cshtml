@@ -1,0 +1,12 @@
+@model ITClubOrg.Models.ModulePageViewModel
+@{
+    ViewData["Title"] = Model.Title;
+}
+
+<section class="page-card module-placeholder">
+    <span class="phase-badge">COMING IN A LATER PHASE</span>
+    <h2>@Model.Title</h2>
+    <p>@Model.Description</p>
+    <p class="module-message">This section is not migrated yet. Its navigation and page theme are in place, and this screen will be replaced as the next module is converted.</p>
+    <a class="btn btn-primary" asp-controller="Dashboard" asp-action="Index">Return to Dashboard</a>
+</section>

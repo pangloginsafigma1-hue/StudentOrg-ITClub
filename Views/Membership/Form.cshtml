@@ -1,0 +1,115 @@
+@model ITClubOrg.Models.MemberFormViewModel
+@{
+    ViewData["Title"] = "Membership";
+}
+
+<section class="page-card membership-card">
+    <div class="membership-card-heading">
+        <div>
+            <h2>@(Model.IsEdit ? "Edit Membership" : "Membership Form")</h2>
+            <p>Enter the student's membership details below.</p>
+        </div>
+        <span class="form-required-note"><span aria-hidden="true">*</span> Required fields</span>
+    </div>
+
+    <form asp-controller="Membership" asp-action="Save" asp-route-id="@(Model.IsEdit ? Model.MemberId : null)" method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger form-summary" role="alert"></div>
+        <div class="membership-fields">
+            <div class="form-field">
+                <label asp-for="MemberId"></label>
+                <input asp-for="MemberId" class="form-control" maxlength="20"
+                       readonly="@(Model.IsEdit ? "readonly" : null)"
+                       aria-describedby="memberIdHint"
+                       data-student-id="@(!Model.IsEdit)" />
+                <span asp-validation-for="MemberId" class="field-error"></span>
+                <span class="field-hint" id="memberIdHint">Format: @Model.StudentIdExample</span>
+            </div>
+
+            <div class="form-field">
+                @if (Model.CanChooseDivision)
+                {
+                    <label asp-for="DivisionId"></label>
+                    <select asp-for="DivisionId" class="form-select">
+                        <option value="">Choose a division</option>
+                        @foreach (var division in Model.Divisions)
+                        {
+                            <option value="@division.DivisionId">@division.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="DivisionId" class="field-error"></span>
+                }
+                else
+                {
+                    <label asp-for="DivisionId">Division</label>
+                    <input asp-for="DivisionId" type="hidden" />
+                    <span>@User.FindFirst("division_name")?.Value</span>
+                }
+            </div>
+
+            <div class="form-field">
+                <label asp-for="StudentName"></label>
+                <input asp-for="StudentName" class="form-control" maxlength="100" autocomplete="name" />
+                <span asp-validation-for="StudentName" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Course"></label>
+                <select asp-for="Course" class="form-select">
+                    <option value="">Select course</option>
+                    @foreach (var course in Model.Courses)
+                    {
+                        <option value="@course">@course</option>
+                    }
+                </select>
+                <span asp-validation-for="Course" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="YearLevel"></label>
+                <select asp-for="YearLevel" class="form-select">
+                    <option value="">Select year level</option>
+                    @foreach (var yearLevel in Model.YearLevels)
+                    {
+                        <option value="@yearLevel">@yearLevel</option>
+                    }
+                </select>
+                <span asp-validation-for="YearLevel" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Position"></label>
+                <select asp-for="Position" class="form-select">
+                    <option value="">Select position</option>
+                    @foreach (var position in Model.Positions)
+                    {
+                        <option value="@position">@position</option>
+                    }
+                </select>
+                <span asp-validation-for="Position" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="Status"></label>
+                <select asp-for="Status" class="form-select">
+                    <option value="">Select status</option>
+                    @foreach (var status in Model.Statuses)
+                    {
+                        <option value="@status">@status</option>
+                    }
+                </select>
+                <span asp-validation-for="Status" class="field-error"></span>
+            </div>
+
+            <div class="form-field">
+                <label asp-for="DateJoined"></label>
+                <input asp-for="DateJoined" class="form-control" type="date" />
+                <span asp-validation-for="DateJoined" class="field-error"></span>
+            </div>
+        </div>
+
+        <div class="membership-form-actions">
+            <a class="btn btn-outline-primary" asp-controller="Members" asp-action="Index">Cancel</a>
+            <button class="btn btn-primary" type="submit">@(Model.IsEdit ? "Save Changes" : "Save Member")</button>
+        </div>
+    </form>
+</section>

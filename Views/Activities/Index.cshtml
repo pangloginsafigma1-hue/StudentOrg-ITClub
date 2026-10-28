@@ -1,0 +1,210 @@
+@model ITClubOrg.Models.ActivityListViewModel
+@{
+    ViewData["Title"] = "Activities";
+}
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+@if (Model.DatabaseError is not null)
+{
+    <div class="alert alert-warning" role="alert">@Model.DatabaseError</div>
+}
+
+<section class="page-card activities-card">
+    <div class="members-toolbar">
+        <form asp-controller="Activities" asp-action="Index" method="get" class="member-search">
+            <label class="visually-hidden" for="activitySearch">Search activities</label>
+            <input id="activitySearch" name="search" class="form-control" value="@Model.Search" maxlength="100" placeholder="Search Activities" />
+            <button class="btn btn-search" type="submit">Search</button>
+        </form>
+        <div class="member-actions">
+            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#activityModal" data-activity-add>
+                Add Activity
+            </button>
+        </div>
+    </div>
+
+    @if (Model.Activities.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table somams-table activities-table">
+                <thead>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">Activity</th>
+                        <th scope="col">Division</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">Location</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Attendance</th>
+                        <th scope="col" class="activity-actions-heading">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var activity in Model.Activities)
+                    {
+                        <tr>
+                            <td>@activity.ActivityId</td>
+                            <td>@activity.ActivityName</td>
+                            <td>@(activity.DivisionName ?? "Unassigned (super admin only)")</td>
+                            <td>@activity.ActivityDate.ToString("MMM dd, yyyy")</td>
+                            <td>@activity.Location</td>
+                            <td><span class="activity-status status-@activity.Status.ToLowerInvariant()">@activity.Status</span></td>
+                            <td>
+                                <span class="status-badge @(activity.AttendanceDone ? "status-active" : "status-inactive")">
+                                    @(activity.AttendanceDone ? "Recorded" : "Not yet")
+                                </span>
+                            </td>
+                            <td class="actions-cell">
+                                <button class="icon-action" type="button"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#activityModal"
+                                        data-activity-edit
+                                        data-activity-id="@activity.ActivityId"
+                                        data-activity-name="@activity.ActivityName"
+                                        data-activity-location="@activity.Location"
+                                        data-activity-date="@activity.ActivityDate.ToString("yyyy-MM-dd")"
+                                        data-activity-status="@activity.Status"
+                                        data-activity-description="@activity.Description"
+                                        data-activity-division-id="@activity.DivisionId"
+                                        aria-label="Edit @activity.ActivityName"
+                                        title="Edit this activity">
+                                    <img src="~/images/ic_edit.png" alt="" />
+                                </button>
+                                <button class="icon-action delete-action" type="button"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#deleteActivityModal"
+                                        data-activity-delete
+                                        data-activity-id="@activity.ActivityId"
+                                        data-activity-name="@activity.ActivityName"
+                                        data-attendance-recorded="@activity.AttendanceDone"
+                                        aria-label="Delete @activity.ActivityName"
+                                        title="Delete this activity">
+                                    <img src="~/images/ic_delete.png" alt="" />
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else if (Model.DatabaseError is null)
+    {
+        <p class="empty-state">@(Model.Search.Length == 0 ? "No activities have been added yet." : "No activities match your search.")</p>
+    }
+
+    <div class="member-list-footer">
+        <strong>Total activities: @Model.Activities.Count</strong>
+        <span>Use the pencil to edit and the bin to delete an activity.</span>
+    </div>
+</section>
+
+<div class="modal fade activity-modal" id="activityModal" tabindex="-1"
+     aria-labelledby="activityModalTitle" aria-hidden="true"
+     data-open-modal="@Model.OpenForm.ToString().ToLowerInvariant()">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content logout-modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="activityModalTitle">Add Activity</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="Activities" asp-action="Save" method="post">
+                <input type="hidden" name="search" value="@Model.Search" />
+                <input asp-for="Form.ActivityId" type="hidden" id="activityId" />
+                <div class="modal-body">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger form-summary" role="alert"></div>
+                    <div class="activity-modal-fields">
+                        <div class="form-field">
+                            @if (Model.CanChooseDivision)
+                            {
+                                <label asp-for="Form.DivisionId"></label>
+                                <select asp-for="Form.DivisionId" class="form-select" id="activityDivision">
+                                    <option value="">Choose a division</option>
+                                    @foreach (var division in Model.Divisions)
+                                    {
+                                        <option value="@division.DivisionId">@division.Name</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="Form.DivisionId" class="field-error"></span>
+                            }
+                            else
+                            {
+                                <label asp-for="Form.DivisionId">Division</label>
+                                <input asp-for="Form.DivisionId" type="hidden" id="activityDivision" />
+                                <span>@User.FindFirst("division_name")?.Value</span>
+                            }
+                        </div>
+                        <div class="form-field">
+                            <label asp-for="Form.ActivityName"></label>
+                            <input asp-for="Form.ActivityName" class="form-control" maxlength="150" id="activityName" />
+                            <span asp-validation-for="Form.ActivityName" class="field-error"></span>
+                        </div>
+                        <div class="form-field">
+                            <label asp-for="Form.Location"></label>
+                            <input asp-for="Form.Location" class="form-control" maxlength="150" id="activityLocation" />
+                            <span asp-validation-for="Form.Location" class="field-error"></span>
+                        </div>
+                        <div class="form-field">
+                            <label asp-for="Form.ActivityDate"></label>
+                            <input asp-for="Form.ActivityDate" class="form-control" type="date" id="activityDate" />
+                            <span asp-validation-for="Form.ActivityDate" class="field-error"></span>
+                        </div>
+                        <div class="form-field">
+                            <label asp-for="Form.Status"></label>
+                            <select asp-for="Form.Status" class="form-select" id="activityStatus">
+                                @foreach (var status in Model.Form.Statuses)
+                                {
+                                    <option value="@status">@status</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Form.Status" class="field-error"></span>
+                        </div>
+                        <div class="form-field activity-description-field">
+                            <label asp-for="Form.Description"></label>
+                            <textarea asp-for="Form.Description" class="form-control" rows="4" id="activityDescription"></textarea>
+                            <span asp-validation-for="Form.Description" class="field-error"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit" id="saveActivityButton">Save Activity</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteActivityModal" tabindex="-1" aria-labelledby="deleteActivityModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content logout-modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="deleteActivityModalTitle">Confirm Delete</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="deleteActivityMessage">Delete this activity?</p>
+                <p id="deleteActivityAttendanceWarning" class="delete-warning" hidden>Its recorded attendance will also be deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-controller="Activities" asp-action="Delete" method="post">
+                    <input type="hidden" name="activityId" id="deleteActivityId" />
+                    <input type="hidden" name="search" value="@Model.Search" />
+                    <button class="btn btn-danger" type="submit">Yes, Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/site.js" asp-append-version="true"></script>
+}

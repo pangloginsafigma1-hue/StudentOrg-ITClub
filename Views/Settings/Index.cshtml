@@ -1,0 +1,78 @@
+@model ITClubOrg.Models.SettingsViewModel
+@{
+    ViewData["Title"] = "Settings";
+}
+
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+@if (Model.DatabaseError is not null)
+{
+    <div class="alert alert-danger" role="alert">@Model.DatabaseError</div>
+}
+
+<section class="settings-card page-card">
+    <div class="settings-heading">
+        <div>
+            <h2>Administrator Profile</h2>
+            <p>Update your account details, profile photo, or password.</p>
+        </div>
+    </div>
+    <form asp-controller="Settings" asp-action="Index" method="post" enctype="multipart/form-data">
+        <input asp-for="HasPhoto" type="hidden" />
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger validation-summary-errors" role="alert"></div>
+        <div class="settings-profile">
+            <div class="settings-photo-column">
+                <img class="settings-photo"
+                     src="@(Model.HasPhoto ? Url.Action("Photo", "Settings") : Url.Content("~/images/logo.png"))"
+                     alt="Administrator profile" />
+                <label class="btn btn-outline-primary photo-upload-button" for="Photo">Change Photo</label>
+                <input asp-for="Photo" id="Photo" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="visually-hidden" />
+                <span asp-validation-for="Photo" class="field-error"></span>
+                <small>JPG or PNG, smaller than 4 MB.</small>
+            </div>
+            <div class="settings-fields">
+                <div class="form-field">
+                    <label asp-for="FullName"></label>
+                    <input asp-for="FullName" class="form-control" autocomplete="name" />
+                    <span asp-validation-for="FullName" class="field-error"></span>
+                </div>
+                <div class="form-field">
+                    <label asp-for="Username"></label>
+                    <input asp-for="Username" class="form-control" autocomplete="username" />
+                    <span asp-validation-for="Username" class="field-error"></span>
+                </div>
+                <div class="form-field">
+                    <label asp-for="Email"></label>
+                    <input asp-for="Email" class="form-control" autocomplete="email" />
+                    <span asp-validation-for="Email" class="field-error"></span>
+                </div>
+                <hr />
+                <h3>Change Password</h3>
+                <p class="settings-hint">Leave both password fields blank to keep your current password.</p>
+                <div class="form-field">
+                    <label asp-for="NewPassword"></label>
+                    <input asp-for="NewPassword" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="NewPassword" class="field-error"></span>
+                </div>
+                <div class="form-field">
+                    <label asp-for="ConfirmPassword"></label>
+                    <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+                </div>
+            </div>
+        </div>
+        <div class="settings-actions">
+            <button class="btn btn-primary" type="submit">Save Changes</button>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+    <script src="~/js/site.js" asp-append-version="true"></script>
+}
