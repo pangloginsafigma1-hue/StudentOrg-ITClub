@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS member_registration_requests (
 
 CREATE TABLE IF NOT EXISTS member_portal_accounts (
     member_id VARCHAR(20) PRIMARY KEY,
+    email VARCHAR(254) NULL,
     password_hash VARCHAR(255) NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

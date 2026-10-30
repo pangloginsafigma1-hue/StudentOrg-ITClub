@@ -4,6 +4,8 @@ namespace ITClubOrg.Models;
 
 public sealed class MemberRegistrationViewModel
 {
+    public string Step { get; set; } = "details";
+
     [Required]
     [StringLength(20)]
     [Display(Name = "Student ID")]
@@ -35,13 +37,9 @@ public sealed class MemberRegistrationViewModel
     [Display(Name = "Division")]
     public int? DivisionId { get; set; }
 
-    [Required]
-    [StringLength(72, MinimumLength = 12)]
     [DataType(DataType.Password)]
     public string Password { get; set; } = string.Empty;
 
-    [Required]
-    [Compare(nameof(Password))]
     [DataType(DataType.Password)]
     [Display(Name = "Confirm password")]
     public string ConfirmPassword { get; set; } = string.Empty;
@@ -51,4 +49,20 @@ public sealed class MemberRegistrationViewModel
     public IReadOnlyList<string> Courses { get; init; } = MemberLookups.Courses;
 
     public IReadOnlyList<string> YearLevels { get; init; } = MemberLookups.YearLevels;
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+    {
+        if (Step == "password")
+        {
+            if (string.IsNullOrEmpty(Password) || Password.Length is < 8 or > 72)
+            {
+                yield return new ValidationResult("Use a password between 8 and 72 characters.", [nameof(Password)]);
+            }
+
+            if (!string.Equals(Password, ConfirmPassword, StringComparison.Ordinal))
+            {
+                yield return new ValidationResult("The passwords do not match.", [nameof(ConfirmPassword)]);
+            }
+        }
+    }
 }

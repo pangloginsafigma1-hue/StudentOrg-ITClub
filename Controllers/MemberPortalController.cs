@@ -32,10 +32,11 @@ public sealed class MemberPortalController(
         var currentPassword = model.CurrentPassword;
         var newPassword = model.NewPassword;
         if (currentPassword is null || newPassword is null
+            || newPassword.Length < 8
             || System.Text.Encoding.UTF8.GetByteCount(currentPassword) > 72
             || System.Text.Encoding.UTF8.GetByteCount(newPassword) > 72)
         {
-            ModelState.AddModelError(nameof(model.NewPassword), "Passwords must not exceed 72 UTF-8 bytes.");
+            ModelState.AddModelError(nameof(model.NewPassword), "Use a password between 8 and 72 UTF-8 bytes.");
         }
 
         if (!ModelState.IsValid || currentPassword is null || newPassword is null)

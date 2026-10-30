@@ -107,6 +107,47 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         return MapMember(reader);
     }
 
+    public async Task<MemberPasswordResetAccount?> GetMemberPasswordResetAccountByEmailAsync(
+        string email,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            """
+            SELECT a.member_id, a.email
+            FROM member_portal_accounts a
+            JOIN members m ON m.member_id = a.member_id
+            WHERE a.email = @email AND a.email IS NOT NULL AND a.is_active = 1 AND m.status = 'Active'
+            LIMIT 1
+            """,
+            connection);
+        command.Parameters.Add("@email", MySqlDbType.VarChar, 254).Value = email;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken)
+            ? new MemberPasswordResetAccount
+            {
+                MemberId = reader.GetString("member_id"),
+                Email = reader.GetString("email")
+            }
+            : null;
+    }
+
+    public async Task<bool> ResetMemberPasswordAsync(
+        string memberId,
+        string newPassword,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            "UPDATE member_portal_accounts SET password_hash = @passwordHash WHERE member_id = @memberId AND is_active = 1",
+            connection);
+        command.Parameters.Add("@passwordHash", MySqlDbType.VarChar, 255).Value = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = memberId;
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
     public async Task<bool> IsAuthorizationCurrentAsync(string memberId, CancellationToken cancellationToken)
     {
         await using var connection = connectionFactory.CreateConnection();
@@ -160,7 +201,7 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
             LEFT JOIN divisions d ON d.division_id = a.division_id
             WHERE a.activity_start_at >= CURRENT_TIMESTAMP()
               AND a.status <> 'Completed'
-              AND (a.division_id IS NULL OR a.division_id = @divisionId)
+              AND (a.division_id IS NULL OR a.division_id = @divisionId OR a.division_id_2 = @divisionId)
             ORDER BY a.activity_start_at, a.activity_id
             LIMIT 20
             """,
@@ -349,7 +390,7 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
     public async Task CreateAnnouncementAsync(
         string title,
         string body,
-        int? divisionId,
+        IReadOnlyList<int> divisionIds,
         int publishedBy,
         CancellationToken cancellationToken)
     {
@@ -357,20 +398,21 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         await connection.OpenAsync(cancellationToken);
         await using var command = new MySqlCommand(
             """
-            INSERT INTO announcements (title, body, division_id, published_by)
-            VALUES (@title, @body, @divisionId, @publishedBy)
+            INSERT INTO announcements (title, body, division_id, division_id_2, published_by)
+            VALUES (@title, @body, @divisionId, @divisionId2, @publishedBy)
             """,
             connection);
         command.Parameters.Add("@title", MySqlDbType.VarChar, 150).Value = title;
         command.Parameters.Add("@body", MySqlDbType.Text).Value = body;
-        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = divisionIds.ElementAtOrDefault(0) is var first && first > 0 ? first : DBNull.Value;
+        command.Parameters.Add("@divisionId2", MySqlDbType.Int32).Value = divisionIds.ElementAtOrDefault(1) is var second && second > 0 ? second : DBNull.Value;
         command.Parameters.Add("@publishedBy", MySqlDbType.Int32).Value = publishedBy;
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public async Task<bool> DeleteAnnouncementAsync(
         int announcementId,
-        int? divisionId,
+        IReadOnlyList<int> divisionIds,
         bool includeAllDivisions,
         CancellationToken cancellationToken)
     {
@@ -380,11 +422,13 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
             """
             DELETE FROM announcements
             WHERE announcement_id = @announcementId
-              AND (@includeAllDivisions = 1 OR division_id = @divisionId)
+              AND (@includeAllDivisions = 1 OR division_id IN (@divisionId, @divisionId2)
+                   OR division_id_2 IN (@divisionId, @divisionId2))
             """,
             connection);
         command.Parameters.Add("@announcementId", MySqlDbType.Int32).Value = announcementId;
-        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = divisionIds.ElementAtOrDefault(0) is var first && first > 0 ? first : DBNull.Value;
+        command.Parameters.Add("@divisionId2", MySqlDbType.Int32).Value = divisionIds.ElementAtOrDefault(1) is var second && second > 0 ? second : DBNull.Value;
         command.Parameters.Add("@includeAllDivisions", MySqlDbType.Bool).Value = includeAllDivisions;
         return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
@@ -517,12 +561,13 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
 
         await using var accountInsert = new MySqlCommand(
             """
-            INSERT INTO member_portal_accounts (member_id, password_hash)
-            VALUES (@memberId, @passwordHash)
+            INSERT INTO member_portal_accounts (member_id, email, password_hash)
+            VALUES (@memberId, @email, @passwordHash)
             """,
             connection,
             transaction);
         accountInsert.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = request.MemberId;
+        accountInsert.Parameters.Add("@email", MySqlDbType.VarChar, 254).Value = (object?)request.Email ?? DBNull.Value;
         accountInsert.Parameters.Add("@passwordHash", MySqlDbType.VarChar, 255).Value = request.PasswordHash;
         await accountInsert.ExecuteNonQueryAsync(cancellationToken);
 
@@ -577,8 +622,8 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
     {
         await using var command = new MySqlCommand(
             """
-            SELECT a.announcement_id, a.title, a.body, a.created_at, a.division_id,
-                   d.name AS division_name, publisher.full_name AS publisher_name,
+            SELECT a.announcement_id, a.title, a.body, a.created_at, a.division_id, a.division_id_2,
+                   d.name AS division_name, d2.name AS division_name_2, publisher.full_name AS publisher_name,
                    CASE publisher.role
                        WHEN 'SuperAdmin' THEN 'Super Admin'
                        WHEN 'DivisionAdmin' THEN 'Division Head'
@@ -586,8 +631,10 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
                    END AS publisher_position
             FROM announcements a
             LEFT JOIN divisions d ON d.division_id = a.division_id
+            LEFT JOIN divisions d2 ON d2.division_id = a.division_id_2
             JOIN admins publisher ON publisher.admin_id = a.published_by
-            WHERE @includeAllDivisions = 1 OR a.division_id IS NULL OR a.division_id = @divisionId
+            WHERE @includeAllDivisions = 1 OR a.division_id IS NULL
+               OR a.division_id = @divisionId OR a.division_id_2 = @divisionId
             ORDER BY a.created_at DESC
             LIMIT 50
             """,
@@ -604,14 +651,20 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
                 DivisionId = reader.IsDBNull(reader.GetOrdinal("division_id"))
                     ? null
                     : reader.GetInt32("division_id"),
+                DivisionId2 = reader.IsDBNull(reader.GetOrdinal("division_id_2"))
+                    ? null
+                    : reader.GetInt32("division_id_2"),
                 Title = reader.GetString("title"),
                 Body = reader.GetString("body"),
                 CreatedAt = reader.GetDateTime("created_at"),
                 PublisherName = reader.GetString("publisher_name"),
                 PublisherPosition = reader.GetString("publisher_position"),
-                DivisionName = reader.IsDBNull(reader.GetOrdinal("division_name"))
-                    ? null
-                    : reader.GetString("division_name")
+                DivisionName = new[] { "division_name", "division_name_2" }
+                    .Where(name => !reader.IsDBNull(reader.GetOrdinal(name)))
+                    .Select(reader.GetString)
+                    .ToArray() is { Length: > 0 } names
+                        ? string.Join(", ", names)
+                        : null
             });
         }
 

@@ -17,10 +17,11 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
         command.CommandText =
             """
             SELECT a.activity_id, a.activity_name, a.location, a.activity_start_at, a.activity_end_at, a.status, a.description,
-                   a.attendance_done, a.division_id, d.name AS division_name
+                   a.attendance_done, a.division_id, a.division_id_2, d.name AS division_name, d2.name AS division_name_2
             FROM activities a
             LEFT JOIN divisions d ON d.division_id = a.division_id
-            WHERE (@divisionId IS NULL OR a.division_id = @divisionId)
+            LEFT JOIN divisions d2 ON d2.division_id = a.division_id_2
+            WHERE (@divisionId IS NULL OR a.division_id = @divisionId OR a.division_id_2 = @divisionId)
               AND (@search = ''
                    OR a.activity_name LIKE @pattern
                    OR a.location LIKE @pattern
@@ -56,11 +57,12 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
         await using var command = new MySqlCommand(
             """
             SELECT a.activity_id, a.activity_name, a.location, a.activity_start_at, a.activity_end_at, a.status, a.description,
-                   a.attendance_done, a.division_id, d.name AS division_name
+                   a.attendance_done, a.division_id, a.division_id_2, d.name AS division_name, d2.name AS division_name_2
             FROM activities a
             LEFT JOIN divisions d ON d.division_id = a.division_id
+            LEFT JOIN divisions d2 ON d2.division_id = a.division_id_2
             WHERE a.activity_id = @activityId
-              AND (@divisionId IS NULL OR a.division_id = @divisionId)
+              AND (@divisionId IS NULL OR a.division_id = @divisionId OR a.division_id_2 = @divisionId)
             LIMIT 1
             """,
             connection);
@@ -73,7 +75,9 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
 
     public async Task SaveAsync(Activity activity, int? divisionId, CancellationToken cancellationToken)
     {
-        if (divisionId is int assignedDivisionId && activity.DivisionId != assignedDivisionId)
+        if (divisionId is int assignedDivisionId
+            && activity.DivisionId != assignedDivisionId
+            && activity.DivisionId2 != assignedDivisionId)
         {
             throw new InvalidOperationException("A division administrator can only assign activities to their own division.");
         }
@@ -85,9 +89,9 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
         command.CommandText = activity.ActivityId == 0
             ? """
               INSERT INTO activities
-                  (activity_name, location, activity_date, activity_start_at, activity_end_at, status, description, division_id)
+                  (activity_name, location, activity_date, activity_start_at, activity_end_at, status, description, division_id, division_id_2)
               VALUES
-                  (@activityName, @location, @activityDate, @activityStartAt, @activityEndDate, @status, @description, @activityDivisionId)
+                  (@activityName, @location, @activityDate, @activityStartAt, @activityEndDate, @status, @description, @activityDivisionId, @activityDivisionId2)
               """
             : """
               UPDATE activities
@@ -98,13 +102,16 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
               activity_end_at = @activityEndDate,
               status = CASE WHEN attendance_done = 1 THEN 'Completed' ELSE @status END,
                   description = @description,
-                  division_id = @activityDivisionId
+                  division_id = @activityDivisionId,
+                  division_id_2 = @activityDivisionId2
               WHERE activity_id = @activityId
-                AND (@divisionId IS NULL OR division_id = @divisionId)
+                AND (@divisionId IS NULL OR division_id = @divisionId OR division_id_2 = @divisionId)
               """;
         AddActivityParameters(command, activity);
         command.Parameters.Add("@activityDivisionId", MySqlDbType.Int32).Value =
             (object?)activity.DivisionId ?? DBNull.Value;
+        command.Parameters.Add("@activityDivisionId2", MySqlDbType.Int32).Value =
+            (object?)activity.DivisionId2 ?? DBNull.Value;
         if (activity.ActivityId > 0)
         {
             command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activity.ActivityId;
@@ -119,7 +126,7 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
         await using var connection = connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var command = new MySqlCommand(
-            "DELETE FROM activities WHERE activity_id = @activityId AND (@divisionId IS NULL OR division_id = @divisionId)",
+            "DELETE FROM activities WHERE activity_id = @activityId AND (@divisionId IS NULL OR division_id = @divisionId OR division_id_2 = @divisionId)",
             connection);
         command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
         command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
@@ -140,7 +147,7 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
             FROM activities a
             LEFT JOIN divisions d ON d.division_id = a.division_id
             WHERE (@includeRecorded = 1 OR a.attendance_done = 0)
-              AND (@divisionId IS NULL OR a.division_id = @divisionId)
+              AND (@divisionId IS NULL OR a.division_id = @divisionId OR a.division_id_2 = @divisionId)
             ORDER BY a.activity_start_at DESC, a.activity_id DESC
             """,
             connection);
@@ -173,10 +180,21 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
             DivisionId = reader.IsDBNull(reader.GetOrdinal("division_id"))
                 ? null
                 : reader.GetInt32("division_id"),
-            DivisionName = reader.IsDBNull(reader.GetOrdinal("division_name"))
+            DivisionId2 = reader.IsDBNull(reader.GetOrdinal("division_id_2"))
                 ? null
-                : reader.GetString("division_name")
+                : reader.GetInt32("division_id_2"),
+            DivisionName = ReadDivisionNames(reader)
         };
+
+    private static string? ReadDivisionNames(MySqlDataReader reader)
+    {
+        var names = new List<string>();
+        if (!reader.IsDBNull(reader.GetOrdinal("division_name")))
+            names.Add(reader.GetString("division_name"));
+        if (!reader.IsDBNull(reader.GetOrdinal("division_name_2")))
+            names.Add(reader.GetString("division_name_2"));
+        return names.Count == 0 ? null : string.Join(", ", names);
+    }
 
     internal static AttendanceActivityOption MapAttendanceOption(MySqlDataReader reader) =>
         new()

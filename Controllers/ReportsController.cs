@@ -13,7 +13,7 @@ public sealed class ReportsController(
     ILogger<ReportsController> logger) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> Index(int? divisionId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Index(int[]? divisionIds, CancellationToken cancellationToken)
     {
         var canChooseDivision = User.IsInRole("SuperAdmin");
         var selectedDivisionId = UserDivision.GetDivisionId(User);
@@ -24,20 +24,21 @@ public sealed class ReportsController(
             if (canChooseDivision)
             {
                 divisions = await divisionRepository.GetAllAsync(cancellationToken);
-                if (divisionId.HasValue && !divisions.Any(division => division.DivisionId == divisionId.Value))
+                var selectedIds = NormalizeDivisionIds(divisionIds);
+                if (selectedIds.Count > 2 || selectedIds.Any(id => !divisions.Any(division => division.DivisionId == id)))
                 {
                     return BadRequest("Choose a valid division.");
                 }
 
-                selectedDivisionId = divisionId;
+                selectedDivisionId = selectedIds.Count == 1 ? selectedIds[0] : null;
             }
 
             model = new ReportsViewModel
             {
-                Members = await reportsRepository.GetMembersAsync(selectedDivisionId, cancellationToken),
-                RecordedActivities = await reportsRepository.GetRecordedActivitiesAsync(selectedDivisionId, cancellationToken),
+                Members = await reportsRepository.GetMembersAsync(canChooseDivision ? NormalizeDivisionIds(divisionIds) : ToDivisionList(selectedDivisionId), cancellationToken),
+                RecordedActivities = await reportsRepository.GetRecordedActivitiesAsync(canChooseDivision ? NormalizeDivisionIds(divisionIds) : ToDivisionList(selectedDivisionId), cancellationToken),
                 Divisions = divisions,
-                DivisionId = selectedDivisionId,
+                DivisionIds = canChooseDivision ? NormalizeDivisionIds(divisionIds) : ToDivisionList(selectedDivisionId),
                 CanChooseDivision = canChooseDivision
             };
         }
@@ -48,7 +49,7 @@ public sealed class ReportsController(
             {
                 DatabaseError = exception.Message,
                 Divisions = divisions,
-                DivisionId = selectedDivisionId,
+                DivisionIds = ToDivisionList(selectedDivisionId),
                 CanChooseDivision = canChooseDivision
             };
         }
@@ -59,7 +60,7 @@ public sealed class ReportsController(
             {
                 DatabaseError = "Report options could not be loaded. Check the MySQL connection and database schema.",
                 Divisions = divisions,
-                DivisionId = selectedDivisionId,
+                DivisionIds = ToDivisionList(selectedDivisionId),
                 CanChooseDivision = canChooseDivision
             };
         }
@@ -72,11 +73,11 @@ public sealed class ReportsController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ExportAllMembers(int? divisionId, CancellationToken cancellationToken)
+    public async Task<IActionResult> ExportAllMembers(int[]? divisionIds, CancellationToken cancellationToken)
     {
         try
         {
-            var selection = await ResolveDivisionIdAsync(divisionId, cancellationToken);
+            var selection = await ResolveDivisionIdsAsync(divisionIds, cancellationToken);
             if (!selection.IsValid)
             {
                 return BadRequest("Choose a valid division.");
@@ -86,17 +87,17 @@ public sealed class ReportsController(
                 null,
                 null,
                 null,
-                selection.DivisionId,
+                selection.DivisionIds,
                 "List of Organization Members",
                 cancellationToken);
         }
         catch (InvalidOperationException exception)
         {
-            return HandleDatabaseError(exception, "The members report could not be created.", divisionId);
+            return HandleDatabaseError(exception, "The members report could not be created.", divisionIds);
         }
         catch (MySqlException exception)
         {
-            return HandleDatabaseError(exception, "The members report could not be loaded from MySQL.", divisionId);
+            return HandleDatabaseError(exception, "The members report could not be loaded from MySQL.", divisionIds);
         }
     }
 
@@ -106,7 +107,7 @@ public sealed class ReportsController(
         string? memberId,
         string? position,
         string? status,
-        int? divisionId,
+        int[]? divisionIds,
         CancellationToken cancellationToken)
     {
         if (!string.IsNullOrEmpty(position) && !MemberLookups.Positions.Contains(position, StringComparer.Ordinal)
@@ -118,7 +119,7 @@ public sealed class ReportsController(
 
         try
         {
-            var selection = await ResolveDivisionIdAsync(divisionId, cancellationToken);
+            var selection = await ResolveDivisionIdsAsync(divisionIds, cancellationToken);
             if (!selection.IsValid)
             {
                 return BadRequest("Choose a valid division.");
@@ -128,17 +129,17 @@ public sealed class ReportsController(
                 string.IsNullOrEmpty(memberId) ? null : memberId,
                 string.IsNullOrEmpty(position) ? null : position,
                 string.IsNullOrEmpty(status) ? null : status,
-                selection.DivisionId,
+                selection.DivisionIds,
                 "Organization Members Report",
                 cancellationToken);
         }
         catch (InvalidOperationException exception)
         {
-            return HandleDatabaseError(exception, "The members report could not be created.", divisionId);
+            return HandleDatabaseError(exception, "The members report could not be created.", divisionIds);
         }
         catch (MySqlException exception)
         {
-            return HandleDatabaseError(exception, "The members report could not be loaded from MySQL.", divisionId);
+            return HandleDatabaseError(exception, "The members report could not be loaded from MySQL.", divisionIds);
         }
     }
 
@@ -147,18 +148,18 @@ public sealed class ReportsController(
     public async Task<IActionResult> ExportActivities(
         DateTime fromDate,
         DateTime toDate,
-        int? divisionId,
+        int[]? divisionIds,
         CancellationToken cancellationToken)
     {
         if (fromDate == default || toDate == default || fromDate.Date > toDate.Date)
         {
             TempData["ErrorMessage"] = "The From date must not be later than the To date.";
-            return RedirectToAction(nameof(Index), new { divisionId });
+            return RedirectToAction(nameof(Index), new { divisionIds });
         }
 
         try
         {
-            var selection = await ResolveDivisionIdAsync(divisionId, cancellationToken);
+            var selection = await ResolveDivisionIdsAsync(divisionIds, cancellationToken);
             if (!selection.IsValid)
             {
                 return BadRequest("Choose a valid division.");
@@ -167,18 +168,18 @@ public sealed class ReportsController(
             var report = await reportsRepository.GetActivitiesReportAsync(
                 fromDate,
                 toDate,
-                selection.DivisionId,
+                selection.DivisionIds,
                 cancellationToken);
             var title = $"List of Activities ({fromDate:MMM d, yyyy} - {toDate:MMM d, yyyy})";
-            return Export(report, title, "SOMAMS-Activities.docx", selection.DivisionId);
+            return Export(report, title, "SOMAMS-Activities.docx", selection.DivisionIds);
         }
         catch (InvalidOperationException exception)
         {
-            return HandleDatabaseError(exception, "The activities report could not be created.", divisionId);
+            return HandleDatabaseError(exception, "The activities report could not be created.", divisionIds);
         }
         catch (MySqlException exception)
         {
-            return HandleDatabaseError(exception, "The activities report could not be loaded from MySQL.", divisionId);
+            return HandleDatabaseError(exception, "The activities report could not be loaded from MySQL.", divisionIds);
         }
     }
 
@@ -186,7 +187,7 @@ public sealed class ReportsController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ExportAttendance(
         int activityId,
-        int? divisionId,
+        int[]? divisionIds,
         CancellationToken cancellationToken)
     {
         if (activityId <= 0)
@@ -196,7 +197,7 @@ public sealed class ReportsController(
 
         try
         {
-            var selection = await ResolveDivisionIdAsync(divisionId, cancellationToken);
+            var selection = await ResolveDivisionIdsAsync(divisionIds, cancellationToken);
             if (!selection.IsValid)
             {
                 return BadRequest("Choose a valid division.");
@@ -204,23 +205,23 @@ public sealed class ReportsController(
 
             var report = await reportsRepository.GetAttendanceReportAsync(
                 activityId,
-                selection.DivisionId,
+                selection.DivisionIds,
                 cancellationToken);
             if (report is null)
             {
                 TempData["ErrorMessage"] = "That activity is unavailable or its attendance has not been recorded.";
-                return RedirectToAction(nameof(Index), new { divisionId });
+                return RedirectToAction(nameof(Index), new { divisionIds });
             }
 
-            return Export(report, "Activity Attendance Report", $"SOMAMS-Attendance-{activityId}.docx", selection.DivisionId);
+            return Export(report, "Activity Attendance Report", $"SOMAMS-Attendance-{activityId}.docx", selection.DivisionIds);
         }
         catch (InvalidOperationException exception)
         {
-            return HandleDatabaseError(exception, "The attendance report could not be created.", divisionId);
+            return HandleDatabaseError(exception, "The attendance report could not be created.", divisionIds);
         }
         catch (MySqlException exception)
         {
-            return HandleDatabaseError(exception, "The attendance report could not be loaded from MySQL.", divisionId);
+            return HandleDatabaseError(exception, "The attendance report could not be loaded from MySQL.", divisionIds);
         }
     }
 
@@ -228,7 +229,7 @@ public sealed class ReportsController(
         string? memberId,
         string? position,
         string? status,
-        int? divisionId,
+        IReadOnlyList<int> divisionIds,
         string title,
         CancellationToken cancellationToken)
     {
@@ -238,46 +239,47 @@ public sealed class ReportsController(
                 memberId,
                 position,
                 status,
-                divisionId,
+                divisionIds,
                 cancellationToken);
-            return Export(report, title, "SOMAMS-Members.docx", divisionId);
+            return Export(report, title, "SOMAMS-Members.docx", divisionIds);
         }
         catch (InvalidOperationException exception)
         {
-            return HandleDatabaseError(exception, "The members report could not be created.", divisionId);
+            return HandleDatabaseError(exception, "The members report could not be created.", divisionIds);
         }
         catch (MySqlException exception)
         {
-            return HandleDatabaseError(exception, "The members report could not be loaded from MySQL.", divisionId);
+            return HandleDatabaseError(exception, "The members report could not be loaded from MySQL.", divisionIds);
         }
     }
 
-    private async Task<(int? DivisionId, bool IsValid)> ResolveDivisionIdAsync(
-        int? requestedDivisionId,
+    private async Task<(IReadOnlyList<int> DivisionIds, bool IsValid)> ResolveDivisionIdsAsync(
+        int[]? requestedDivisionIds,
         CancellationToken cancellationToken)
     {
         if (!User.IsInRole("SuperAdmin"))
         {
-            return (UserDivision.GetDivisionId(User), true);
+            return (ToDivisionList(UserDivision.GetDivisionId(User)), true);
         }
 
-        if (!requestedDivisionId.HasValue)
+        var selectedIds = NormalizeDivisionIds(requestedDivisionIds);
+        if (selectedIds.Count == 0)
         {
-            return (null, true);
+            return ([], true);
         }
 
         var divisions = await divisionRepository.GetAllAsync(cancellationToken);
-        return divisions.Any(division => division.DivisionId == requestedDivisionId.Value)
-            ? (requestedDivisionId, true)
-            : (null, false);
+        return selectedIds.Count <= 2 && selectedIds.All(id => divisions.Any(division => division.DivisionId == id))
+            ? (selectedIds, true)
+            : ([], false);
     }
 
-    private IActionResult Export(ReportTable report, string title, string fileName, int? divisionId)
+    private IActionResult Export(ReportTable report, string title, string fileName, IReadOnlyList<int> divisionIds)
     {
         if (report.Rows.Count == 0)
         {
             TempData["ErrorMessage"] = "There is no data to export for the selected report.";
-            return RedirectToAction(nameof(Index), new { divisionId });
+            return RedirectToAction(nameof(Index), new { divisionIds });
         }
 
         return File(
@@ -286,10 +288,16 @@ public sealed class ReportsController(
             fileName);
     }
 
-    private IActionResult HandleDatabaseError(Exception exception, string message, int? divisionId = null)
+    private IActionResult HandleDatabaseError(Exception exception, string message, IReadOnlyList<int>? divisionIds = null)
     {
         logger.LogError(exception, "A report export failed.");
         TempData["ErrorMessage"] = message;
-        return RedirectToAction(nameof(Index), new { divisionId });
+        return RedirectToAction(nameof(Index), new { divisionIds });
     }
+
+    private static IReadOnlyList<int> NormalizeDivisionIds(IEnumerable<int>? divisionIds) =>
+        divisionIds?.Where(id => id > 0).Distinct().ToArray() ?? [];
+
+    private static IReadOnlyList<int> ToDivisionList(int? divisionId) =>
+        divisionId is int id ? [id] : [];
 }

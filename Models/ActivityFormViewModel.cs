@@ -9,6 +9,8 @@ public sealed class ActivityFormViewModel
     [Display(Name = "Audience")]
     public int? DivisionId { get; set; }
 
+    public int[] DivisionIds { get; set; } = [];
+
     public IReadOnlyList<Division> Divisions { get; init; } = [];
 
     public bool CanChooseDivision { get; init; }
@@ -38,7 +40,7 @@ public sealed class ActivityFormViewModel
 
     [StringLength(65535)]
     [Display(Name = "Description (optional)")]
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
 
     public IReadOnlyList<string> Statuses { get; init; } = MemberLookups.ActivityStatuses;
 }

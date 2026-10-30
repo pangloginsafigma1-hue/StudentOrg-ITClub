@@ -126,9 +126,12 @@ public sealed class MemberAccessController(
     [EnableRateLimiting("member-access")]
     public async Task<IActionResult> Register(MemberRegistrationViewModel model, CancellationToken cancellationToken)
     {
+        model.Step = model.Step == "password" ? "password" : "details";
         model.MemberId = model.MemberId?.Trim() ?? string.Empty;
         model.StudentName = model.StudentName?.Trim() ?? string.Empty;
         model.Email = model.Email?.Trim() ?? string.Empty;
+        ModelState.Clear();
+        TryValidateModel(model);
         try
         {
             if (!GetStudentIdPattern().IsMatch(model.MemberId))
@@ -142,7 +145,8 @@ public sealed class MemberAccessController(
             logger.LogError(exception, "Member registration could not validate the Student ID format.");
             ModelState.AddModelError(string.Empty, exception.Message);
         }
-        if (model.Password is null || Encoding.UTF8.GetByteCount(model.Password) > 72)
+        if (model.Step == "password"
+            && (model.Password is null || Encoding.UTF8.GetByteCount(model.Password) > 72))
         {
             ModelState.AddModelError(nameof(model.Password), "The password must not exceed 72 UTF-8 bytes.");
         }
@@ -178,6 +182,12 @@ public sealed class MemberAccessController(
         model = CopyWithDivisions(model, divisions);
         if (!ModelState.IsValid)
         {
+            return View(model);
+        }
+
+        if (model.Step == "details")
+        {
+            model.Step = "password";
             return View(model);
         }
 
@@ -218,6 +228,7 @@ public sealed class MemberAccessController(
         IReadOnlyList<Division> divisions) =>
         new()
         {
+            Step = model.Step,
             MemberId = model.MemberId,
             StudentName = model.StudentName,
             Email = model.Email,

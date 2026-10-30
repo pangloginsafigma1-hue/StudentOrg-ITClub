@@ -30,6 +30,8 @@ public sealed class MemberAnnouncement
 
     public int? DivisionId { get; init; }
 
+    public int? DivisionId2 { get; init; }
+
     public string Title { get; init; } = string.Empty;
 
     public string Body { get; init; } = string.Empty;

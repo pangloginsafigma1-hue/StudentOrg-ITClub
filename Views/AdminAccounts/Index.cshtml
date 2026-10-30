@@ -16,7 +16,7 @@
     <div class="alert alert-danger" role="alert">@databaseError</div>
 }
 
-<section class="page-card">
+<section class="page-card admin-account-card">
     <div class="members-toolbar">
         <div>
             <h2>Administrator Accounts</h2>
@@ -56,8 +56,8 @@
                                     @(account.IsActive ? "Active" : "Disabled")
                                 </span>
                             </td>
-                            <td class="actions-cell">
-                                <a class="btn btn-outline-primary btn-sm"
+                            <td class="actions-cell account-actions">
+                                <a class="btn btn-account-manage"
                                    asp-controller="AdminAccounts"
                                    asp-action="Edit"
                                    asp-route-id="@account.AdminId">Manage</a>
@@ -78,7 +78,7 @@
     }
 </section>
 
-<section class="page-card">
+<section class="page-card admin-account-card">
     <div class="members-toolbar">
         <div>
             <h2>Member Accounts</h2>
@@ -118,19 +118,19 @@
                                     @(account.IsPortalAccountActive ? "Enabled" : "Disabled")
                                 </span>
                             </td>
-                            <td class="actions-cell">
+                            <td class="actions-cell account-actions">
                                 <form asp-controller="AdminAccounts"
                                       asp-action="SetMemberAccountStatus"
                                       method="post"
                                       class="d-inline">
                                     <input type="hidden" name="memberId" value="@account.MemberId" />
                                     <input type="hidden" name="isActive" value="@(!account.IsPortalAccountActive)" />
-                                    <button class="btn btn-outline-primary btn-sm" type="submit">
+                                    <button class="btn @(account.IsPortalAccountActive ? "btn-account-disable" : "btn-account-enable")" type="submit">
                                         @(account.IsPortalAccountActive ? "Disable" : "Enable")
                                     </button>
                                 </form>
                                 <details class="member-password-reset">
-                                    <summary class="btn btn-outline-primary btn-sm">Reset password</summary>
+                                    <summary class="btn btn-account-reset">Reset password</summary>
                                     <form asp-controller="AdminAccounts"
                                           asp-action="ResetMemberPassword"
                                           method="post"

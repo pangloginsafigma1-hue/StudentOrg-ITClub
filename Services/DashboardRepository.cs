@@ -28,7 +28,7 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
             cancellationToken);
         var activityCount = await GetCountAsync(
             connection,
-            "SELECT COUNT(*) FROM activities WHERE (@divisionId IS NULL OR division_id = @divisionId)",
+            "SELECT COUNT(*) FROM activities WHERE (@divisionId IS NULL OR division_id = @divisionId OR division_id_2 = @divisionId)",
             divisionId,
             null,
             cancellationToken);
@@ -38,7 +38,7 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
             SELECT COUNT(*) FROM activities
             WHERE status IN ('Upcoming', 'Pending')
               AND activity_start_at >= CURRENT_TIMESTAMP()
-              AND (@divisionId IS NULL OR division_id = @divisionId)
+              AND (@divisionId IS NULL OR division_id = @divisionId OR division_id_2 = @divisionId)
             """,
             divisionId,
             null,
@@ -59,7 +59,7 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
             """
             SELECT COUNT(*) FROM activities
             WHERE attendance_done = 1
-              AND (@divisionId IS NULL OR division_id = @divisionId)
+              AND (@divisionId IS NULL OR division_id = @divisionId OR division_id_2 = @divisionId)
             """,
             divisionId,
             null,
@@ -126,7 +126,7 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
             SELECT a.activity_name, a.activity_start_at, a.activity_end_at, a.location, a.status, d.name AS division_name
             FROM activities a
             LEFT JOIN divisions d ON d.division_id = a.division_id
-            WHERE (@divisionId IS NULL OR a.division_id = @divisionId)
+            WHERE (@divisionId IS NULL OR a.division_id = @divisionId OR a.division_id_2 = @divisionId)
               {dateFilter}
             ORDER BY a.activity_start_at {order}, a.activity_id DESC
             LIMIT 6
@@ -226,7 +226,7 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
             FROM activities
             WHERE activity_start_at >= @trendStart
               AND activity_start_at < @trendEnd
-              AND (@divisionId IS NULL OR division_id = @divisionId)
+              AND (@divisionId IS NULL OR division_id = @divisionId OR division_id_2 = @divisionId)
             GROUP BY month_start
             """,
             connection))

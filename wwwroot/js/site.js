@@ -1,3 +1,46 @@
+document.querySelectorAll("[data-division-dropdown]").forEach((dropdown) => {
+    const allInput = dropdown.querySelector('input[type="checkbox"][value=""]');
+    const divisionInputs = [...dropdown.querySelectorAll('input[type="checkbox"]:not([value=""])')];
+    const label = dropdown.querySelector("[data-division-label]");
+    const maxSelections = Number(dropdown.dataset.maxSelections || 2);
+
+    const updateLabel = () => {
+        const selected = divisionInputs
+            .filter((input) => input.checked)
+            .map((input) => input.closest("label")?.querySelector("span")?.textContent?.trim())
+            .filter(Boolean);
+        if (label) {
+            label.textContent = selected.length === 0
+                ? "All divisions"
+                : selected.length === 1
+                    ? selected[0]
+                    : `${selected.length} divisions selected`;
+        }
+    };
+
+    allInput?.addEventListener("change", () => {
+        if (allInput.checked) {
+            divisionInputs.forEach((input) => input.checked = false);
+        }
+        updateLabel();
+    });
+    divisionInputs.forEach((input) => input.addEventListener("change", () => {
+        const selected = divisionInputs.filter((item) => item.checked);
+        if (selected.length > maxSelections) {
+            input.checked = false;
+            return;
+        }
+        if (input.checked && allInput) {
+            allInput.checked = false;
+        }
+        if (!selected.length && allInput) {
+            allInput.checked = true;
+        }
+        updateLabel();
+    }));
+    updateLabel();
+});
+
 document.querySelectorAll("[data-password-toggle]").forEach((button) => {
     button.addEventListener("click", () => {
         const password = document.querySelector("#passwordInput");
@@ -40,6 +83,30 @@ document.querySelectorAll("[data-student-id='true']").forEach((input) => {
     });
 });
 
+const divisionChecks = document.querySelectorAll("input[name='divisionIds']");
+if (divisionChecks.length > 0) {
+    divisionChecks.forEach((input) => {
+        input.addEventListener("change", () => {
+            const all = [...divisionChecks].find((item) => item.value === "");
+            const selected = [...divisionChecks].filter((item) => item.value !== "" && item.checked);
+            if (input.value === "" && input.checked) {
+                divisionChecks.forEach((item) => {
+                    if (item.value !== "") item.checked = false;
+                });
+            } else if (input.value !== "" && input.checked && all instanceof HTMLInputElement) {
+                all.checked = false;
+            }
+            if (selected.length > 2 && input.value !== "") {
+                input.checked = false;
+                input.setCustomValidity("Choose no more than two divisions.");
+                input.reportValidity();
+            } else {
+                input.setCustomValidity("");
+            }
+        });
+    });
+}
+
 const deleteMemberModal = document.querySelector("#deleteMemberModal");
 if (deleteMemberModal instanceof HTMLElement) {
     deleteMemberModal.addEventListener("show.bs.modal", (event) => {
@@ -81,8 +148,10 @@ if (activityModal instanceof HTMLElement) {
         const division = activityModal.querySelector("#activityDivision");
         const title = activityModal.querySelector("#activityModalTitle");
         const submit = activityModal.querySelector("#saveActivityButton");
+        const activityForm = activityModal.querySelector("form");
 
         if (!(form instanceof HTMLFormElement)
+            || !(activityForm instanceof HTMLFormElement)
             || !(id instanceof HTMLInputElement)
             || !(name instanceof HTMLInputElement)
             || !(location instanceof HTMLInputElement)
@@ -109,8 +178,17 @@ if (activityModal instanceof HTMLElement) {
             .slice(0, 10);
         date.value = isEdit ? trigger.dataset.activityDate ?? `${today}T09:00` : `${today}T09:00`;
         endDate.value = isEdit ? trigger.dataset.activityEndDate ?? `${today}T10:00` : `${today}T10:00`;
+        endDate.min = date.value;
         status.value = isEdit ? trigger.dataset.activityStatus ?? "Upcoming" : "Upcoming";
         division.value = isEdit ? trigger.dataset.activityDivisionId ?? "" : "";
+        document.querySelectorAll("input[name='Form.DivisionIds']").forEach((input) => {
+            if (input instanceof HTMLInputElement) {
+                input.checked = isEdit
+                    ? input.value === (trigger.dataset.activityDivisionId ?? "")
+                        || input.value === (trigger.dataset.activityDivisionId2 ?? "")
+                    : input.value === "";
+            }
+        });
 
         title.textContent = isEdit ? "Edit Activity" : "Add Activity";
         submit.textContent = isEdit ? "Save Changes" : "Save Activity";
@@ -119,6 +197,31 @@ if (activityModal instanceof HTMLElement) {
     if (activityModal.dataset.openModal === "true" && window.bootstrap) {
         bootstrap.Modal.getOrCreateInstance(activityModal).show();
     }
+}
+
+const activityForm = document.querySelector("#activityModal form");
+const activityStart = document.querySelector("#activityDate");
+const activityEnd = document.querySelector("#activityEndDate");
+if (activityForm instanceof HTMLFormElement
+    && activityStart instanceof HTMLInputElement
+    && activityEnd instanceof HTMLInputElement) {
+    const syncActivityEnd = () => {
+        activityEnd.min = activityStart.value;
+        if (activityEnd.value && activityStart.value && activityEnd.value <= activityStart.value) {
+            activityEnd.setCustomValidity("The end date and time must be after the start.");
+        } else {
+            activityEnd.setCustomValidity("");
+        }
+    };
+    activityStart.addEventListener("input", syncActivityEnd);
+    activityEnd.addEventListener("input", syncActivityEnd);
+    activityForm.addEventListener("submit", (event) => {
+        syncActivityEnd();
+        if (!activityForm.checkValidity()) {
+            event.preventDefault();
+            activityForm.reportValidity();
+        }
+    });
 }
 
 const adminRoleSelect = document.querySelector("[data-admin-role]");

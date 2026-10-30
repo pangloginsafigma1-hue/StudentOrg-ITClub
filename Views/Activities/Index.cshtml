@@ -74,6 +74,7 @@
                                         data-activity-status="@activity.Status"
                                         data-activity-description="@activity.Description"
                                         data-activity-division-id="@activity.DivisionId"
+                                        data-activity-division-id-2="@activity.DivisionId2"
                                         aria-label="Edit @activity.ActivityName"
                                         title="Edit this activity">
                                     <img src="~/images/ic_edit.png" alt="" />
@@ -125,15 +126,27 @@
                         <div class="form-field">
                             @if (Model.CanChooseDivision)
                             {
-                                <label asp-for="Form.DivisionId"></label>
-                                <select asp-for="Form.DivisionId" class="form-select" id="activityDivision">
-                                    <option value="">All divisions (organization-wide)</option>
-                                    @foreach (var division in Model.Divisions)
-                                    {
-                                        <option value="@division.DivisionId">@division.Name</option>
-                                    }
-                                </select>
-                                <span asp-validation-for="Form.DivisionId" class="field-error"></span>
+                                <label>Divisions <small>(choose up to 2)</small></label>
+                                <details class="division-dropdown" data-division-dropdown data-max-selections="2">
+                                    <summary class="division-dropdown-trigger">
+                                        <span data-division-label>Select divisions</span>
+                                        <span class="division-dropdown-chevron" aria-hidden="true"></span>
+                                    </summary>
+                                    <div class="division-dropdown-menu" role="group" aria-label="Activity divisions">
+                                        <label class="division-check-option">
+                                            <input type="checkbox" name="Form.DivisionIds" value="" checked="@(Model.Form.DivisionIds.Length == 0 ? "checked" : null)" />
+                                            <span>All divisions</span>
+                                        </label>
+                                        @foreach (var division in Model.Divisions)
+                                        {
+                                        <label class="division-check-option">
+                                            <input type="checkbox" name="Form.DivisionIds" value="@division.DivisionId" checked="@(Model.Form.DivisionIds.Contains(division.DivisionId) ? "checked" : null)" />
+                                            <span>@division.Name</span>
+                                        </label>
+                                        }
+                                    </div>
+                                </details>
+                                <span asp-validation-for="Form.DivisionIds" class="field-error"></span>
                             }
                             else
                             {
@@ -159,7 +172,7 @@
                         </div>
                         <div class="form-field">
                             <label asp-for="Form.ActivityEndDate"></label>
-                            <input asp-for="Form.ActivityEndDate" class="form-control" type="datetime-local" id="activityEndDate" />
+                            <input asp-for="Form.ActivityEndDate" class="form-control" type="datetime-local" id="activityEndDate" min="@Model.Form.ActivityDate?.ToString("yyyy-MM-ddTHH:mm")" />
                             <span asp-validation-for="Form.ActivityEndDate" class="field-error"></span>
                         </div>
                         <div class="form-field">

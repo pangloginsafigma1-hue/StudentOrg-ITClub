@@ -31,10 +31,6 @@
                 <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2" /><path d="M7.5 3v4M16.5 3v4M3.5 10h17" /></svg></span>
                 <span>Activities</span>
             </a>
-            <a class="sidebar-link @(activeSection == "account" ? "active" : "")" asp-controller="MemberPortal" asp-action="Record">
-                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5" /><path d="M4 21a8 8 0 0 1 16 0M17 4l2 2 3-3" /></svg></span>
-                <span>Account</span>
-            </a>
             <a class="sidebar-link @(activeSection == "my-attendance" ? "active" : "")" asp-controller="MemberPortal" asp-action="Attendance">
                 <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16.5 9" /></svg></span>
                 <span>My Attendance</span>
@@ -42,6 +38,10 @@
             <a class="sidebar-link @(activeSection == "updates" ? "active" : "")" asp-controller="MemberPortal" asp-action="Updates">
                 <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13V9a2 2 0 0 1 2-2h2l9-4v16l-9-4H6a2 2 0 0 1-2-2Z" /><path d="m8 15 1.5 5h3L11 16M20 9v4" /></svg></span>
                 <span>Updates</span>
+            </a>
+            <a class="sidebar-link @(activeSection == "account" ? "active" : "")" asp-controller="MemberPortal" asp-action="Record">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5" /><path d="M4 21a8 8 0 0 1 16 0M17 4l2 2 3-3" /></svg></span>
+                <span>Account</span>
             </a>
         </nav>
         <form class="sidebar-logout" asp-controller="Auth" asp-action="Logout" method="post">

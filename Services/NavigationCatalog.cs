@@ -11,9 +11,9 @@ public static class NavigationCatalog
         new() { Key = "attendance", Title = "Attendance", Description = "Record division member attendance during an activity.", IconPath = "/images/ic_attendance.png" },
         new() { Key = "membership", Title = "Membership", Description = "Manage members and review join requests", IconPath = "/images/ic_membership.png" },
         new() { Key = "reports", Title = "Reports", Description = "Review and export organization reports", IconPath = "/images/ic_reports.png" },
-        new() { Key = "settings", Title = "Profile", Description = "Manage your administrator profile and password" },
         new() { Key = "announcements", Title = "Announcements", Description = "Publish announcements for members" },
-        new() { Key = "user-roles", Title = "User Roles", Description = "Manage user accounts, roles, and access" }
+        new() { Key = "user-roles", Title = "User Roles", Description = "Manage user accounts, roles, and access" },
+        new() { Key = "settings", Title = "Profile", Description = "Manage your administrator profile and password" }
     ];
 
     public static NavigationItem? Find(string key) =>

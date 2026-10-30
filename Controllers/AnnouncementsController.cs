@@ -72,8 +72,19 @@ public sealed class AnnouncementsController(
         var divisionScope = UserDivision.GetDivisionId(User);
         if (divisionScope is int assignedDivisionId)
         {
-            model.DivisionId = assignedDivisionId;
-            ModelState.Remove(nameof(model.DivisionId));
+            model.DivisionIds = [assignedDivisionId];
+            ModelState.Remove(nameof(model.DivisionIds));
+        }
+        else
+        {
+            model.DivisionIds = model.DivisionIds
+                .Where(id => id > 0)
+                .Distinct()
+                .ToArray();
+            if (model.DivisionIds.Length > 2)
+            {
+                ModelState.AddModelError(nameof(model.DivisionIds), "Choose no more than two divisions.");
+            }
         }
 
         IReadOnlyList<Division> divisions;
@@ -82,10 +93,10 @@ public sealed class AnnouncementsController(
             divisions = User.IsInRole("SuperAdmin")
                 ? await divisionRepository.GetAllAsync(cancellationToken)
                 : [];
-            if (model.DivisionId is int requestedId
-                && !divisions.Any(division => division.DivisionId == requestedId))
+            if (model.DivisionIds.Any(requestedId =>
+                !divisions.Any(division => division.DivisionId == requestedId)))
             {
-                ModelState.AddModelError(nameof(model.DivisionId), "Choose a valid division.");
+                ModelState.AddModelError(nameof(model.DivisionIds), "Choose valid divisions.");
             }
         }
         catch (InvalidOperationException exception)
@@ -105,7 +116,7 @@ public sealed class AnnouncementsController(
         {
             Title = model.Title?.Trim() ?? string.Empty,
             Body = model.Body?.Trim() ?? string.Empty,
-            DivisionId = model.DivisionId,
+            DivisionIds = model.DivisionIds,
             Divisions = divisions
         };
         if (!ModelState.IsValid)
@@ -124,7 +135,7 @@ public sealed class AnnouncementsController(
             await memberRepository.CreateAnnouncementAsync(
                 model.Title,
                 model.Body,
-                model.DivisionId,
+                model.DivisionIds,
                 adminId,
                 cancellationToken);
             TempData["SuccessMessage"] = "Your post was published.";
@@ -145,7 +156,7 @@ public sealed class AnnouncementsController(
         {
             Title = model.Title,
             Body = model.Body,
-            DivisionId = model.DivisionId,
+            DivisionIds = model.DivisionIds,
             Divisions = divisions
         };
         SetPageMetadata();
@@ -166,7 +177,9 @@ public sealed class AnnouncementsController(
         {
             var deleted = await memberRepository.DeleteAnnouncementAsync(
                 announcementId,
-                UserDivision.GetDivisionId(User),
+                UserDivision.GetDivisionId(User) is int scopedDivision
+                    ? [scopedDivision]
+                    : [],
                 User.IsInRole("SuperAdmin"),
                 cancellationToken);
             TempData[deleted ? "SuccessMessage" : "ErrorMessage"] = deleted

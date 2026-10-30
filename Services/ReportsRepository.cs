@@ -5,16 +5,32 @@ namespace ITClubOrg.Services;
 
 public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) : IReportsRepository
 {
+    private static string DivisionFilter(string column, IReadOnlyList<int> divisionIds, string? secondaryColumn = null) =>
+        divisionIds.Count == 0
+            ? "1 = 1"
+            : $"({column} IN ({string.Join(", ", divisionIds.Select((_, index) => $"@division{index}"))})" +
+              (secondaryColumn is null
+                  ? ")"
+                  : $" OR {secondaryColumn} IN ({string.Join(", ", divisionIds.Select((_, index) => $"@division{index}"))}))");
+
+    private static void AddDivisionParameters(MySqlCommand command, IReadOnlyList<int> divisionIds)
+    {
+        for (var index = 0; index < divisionIds.Count; index++)
+        {
+            command.Parameters.Add($"@division{index}", MySqlDbType.Int32).Value = divisionIds[index];
+        }
+    }
+
     public async Task<IReadOnlyList<ReportMemberOption>> GetMembersAsync(
-        int? divisionId,
+        IReadOnlyList<int> divisionIds,
         CancellationToken cancellationToken)
     {
         await using var connection = connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var command = new MySqlCommand(
-            "SELECT member_id, student_name FROM members WHERE (@divisionId IS NULL OR division_id = @divisionId) ORDER BY student_name",
+            $"SELECT member_id, student_name FROM members WHERE {DivisionFilter("division_id", divisionIds)} ORDER BY student_name",
             connection);
-        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        AddDivisionParameters(command, divisionIds);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         var members = new List<ReportMemberOption>();
@@ -31,7 +47,7 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
     }
 
     public async Task<IReadOnlyList<ReportActivityOption>> GetRecordedActivitiesAsync(
-        int? divisionId,
+        IReadOnlyList<int> divisionIds,
         CancellationToken cancellationToken)
     {
         await using var connection = connectionFactory.CreateConnection();
@@ -41,11 +57,11 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
             SELECT activity_id, activity_name, activity_start_at, activity_end_at
             FROM activities
             WHERE attendance_done = 1
-              AND (@divisionId IS NULL OR division_id = @divisionId)
+              AND {DivisionFilter("division_id", divisionIds, "division_id_2")}
             ORDER BY activity_start_at DESC, activity_name
             """,
             connection);
-        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        AddDivisionParameters(command, divisionIds);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         var activities = new List<ReportActivityOption>();
@@ -67,7 +83,7 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
         string? memberId,
         string? position,
         string? status,
-        int? divisionId,
+        IReadOnlyList<int> divisionIds,
         CancellationToken cancellationToken)
     {
         await using var connection = connectionFactory.CreateConnection();
@@ -79,14 +95,14 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
             WHERE (@memberId IS NULL OR member_id = @memberId)
               AND (@position IS NULL OR position = @position)
               AND (@status IS NULL OR status = @status)
-              AND (@divisionId IS NULL OR division_id = @divisionId)
+              AND {DivisionFilter("division_id", divisionIds)}
             ORDER BY student_name
             """,
             connection);
         command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = (object?)memberId ?? DBNull.Value;
         command.Parameters.Add("@position", MySqlDbType.VarChar, 50).Value = (object?)position ?? DBNull.Value;
         command.Parameters.Add("@status", MySqlDbType.VarChar, 8).Value = (object?)status ?? DBNull.Value;
-        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        AddDivisionParameters(command, divisionIds);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         var rows = new List<IReadOnlyList<string>>();
@@ -113,7 +129,7 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
     public async Task<ReportTable> GetActivitiesReportAsync(
         DateTime fromDate,
         DateTime toDate,
-        int? divisionId,
+        IReadOnlyList<int> divisionIds,
         CancellationToken cancellationToken)
     {
         await using var connection = connectionFactory.CreateConnection();
@@ -126,13 +142,13 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
             FROM activities
             WHERE activity_start_at >= @fromDate
               AND activity_start_at < @toDateExclusive
-              AND (@divisionId IS NULL OR division_id = @divisionId)
+              AND {DivisionFilter("division_id", divisionIds)}
             ORDER BY activity_start_at, activity_name
             """,
             connection);
         command.Parameters.Add("@fromDate", MySqlDbType.DateTime).Value = fromDate.Date;
         command.Parameters.Add("@toDateExclusive", MySqlDbType.DateTime).Value = toDate.Date.AddDays(1);
-        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        AddDivisionParameters(command, divisionIds);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         var rows = new List<IReadOnlyList<string>>();
@@ -157,7 +173,7 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
 
     public async Task<ReportTable?> GetAttendanceReportAsync(
         int activityId,
-        int? divisionId,
+        IReadOnlyList<int> divisionIds,
         CancellationToken cancellationToken)
     {
         await using var connection = connectionFactory.CreateConnection();
@@ -168,16 +184,18 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
                    CASE WHEN a.is_present = 1 THEN 'Present' ELSE 'Absent' END AS attendance
             FROM activities activity
             JOIN members m ON m.status = 'Active'
-                 AND (activity.division_id IS NULL OR m.division_id = activity.division_id)
+                 AND (activity.division_id IS NULL
+                      OR m.division_id = activity.division_id
+                      OR m.division_id = activity.division_id_2)
             LEFT JOIN attendance a ON a.member_id = m.member_id AND a.activity_id = activity.activity_id
             WHERE activity.activity_id = @activityId
               AND activity.attendance_done = 1
-              AND (@divisionId IS NULL OR activity.division_id = @divisionId)
+              AND {DivisionFilter("activity.division_id", divisionIds, "activity.division_id_2")}
             ORDER BY m.student_name
             """,
             connection);
         command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
-        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        AddDivisionParameters(command, divisionIds);
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         if (!await reader.ReadAsync(cancellationToken))

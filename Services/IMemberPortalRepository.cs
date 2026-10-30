@@ -8,6 +8,15 @@ public interface IMemberPortalRepository
 
     Task<Member?> AuthenticateAsync(string memberId, string password, CancellationToken cancellationToken);
 
+    Task<MemberPasswordResetAccount?> GetMemberPasswordResetAccountByEmailAsync(
+        string email,
+        CancellationToken cancellationToken);
+
+    Task<bool> ResetMemberPasswordAsync(
+        string memberId,
+        string newPassword,
+        CancellationToken cancellationToken);
+
     Task<bool> IsAuthorizationCurrentAsync(string memberId, CancellationToken cancellationToken);
 
     Task<MemberPortalViewModel> GetPortalAsync(string memberId, CancellationToken cancellationToken);
@@ -38,13 +47,13 @@ public interface IMemberPortalRepository
     Task CreateAnnouncementAsync(
         string title,
         string body,
-        int? divisionId,
+        IReadOnlyList<int> divisionIds,
         int publishedBy,
         CancellationToken cancellationToken);
 
     Task<bool> DeleteAnnouncementAsync(
         int announcementId,
-        int? divisionId,
+        IReadOnlyList<int> divisionIds,
         bool includeAllDivisions,
         CancellationToken cancellationToken);
 

@@ -41,6 +41,9 @@
         }
         <div asp-validation-summary="ModelOnly" class="alert alert-danger login-alert" role="alert"></div>
         <form asp-action="Register" method="post" class="login-form register-form">
+            <input asp-for="Step" type="hidden" />
+            @if (Model.Step == "details")
+            {
             <div class="register-form-section">
                 <div class="register-section-heading">
                     <span>01</span>
@@ -97,7 +100,20 @@
                         <span asp-validation-for="DivisionId" class="field-error"></span>
                     </div>
                 </div>
+                <div class="register-next-row">
+                    <span>Next: secure your account with a password.</span>
+                    <button class="btn btn-primary login-submit" type="submit" @(Model.Divisions.Count == 0 ? "disabled" : null)>Next</button>
+                </div>
             </div>
+            }
+            else
+            {
+                <input asp-for="MemberId" type="hidden" />
+                <input asp-for="StudentName" type="hidden" />
+                <input asp-for="Email" type="hidden" />
+                <input asp-for="Course" type="hidden" />
+                <input asp-for="YearLevel" type="hidden" />
+                <input asp-for="DivisionId" type="hidden" />
             <div class="register-form-section register-password-section">
                 <div class="register-section-heading">
                     <span>02</span>
@@ -108,7 +124,7 @@
                         <label asp-for="Password"></label>
                         <input asp-for="Password" class="form-control" autocomplete="new-password" />
                         <span asp-validation-for="Password" class="field-error"></span>
-                        <small>Use 12 to 72 characters (no more than 72 UTF-8 bytes).</small>
+                        <small>Use 8 to 72 characters.</small>
                     </div>
                     <div class="form-field">
                         <label asp-for="ConfirmPassword"></label>
@@ -116,11 +132,12 @@
                         <span asp-validation-for="ConfirmPassword" class="field-error"></span>
                     </div>
                 </div>
-            </div>
             <div class="register-submit-row">
                 <span>Your request will be reviewed before access is enabled.</span>
-                <button class="btn btn-primary login-submit" type="submit" @(Model.Divisions.Count == 0 ? "disabled" : null)>Submit application</button>
+                <button class="btn btn-primary login-submit" type="submit">Submit application</button>
             </div>
+            </div>
+            }
         </form>
         <p class="login-footer register-login-link">Already have an account? <a asp-action="Login">Sign in to the member portal</a></p>
     </section>

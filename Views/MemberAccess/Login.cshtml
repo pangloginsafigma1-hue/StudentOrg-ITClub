@@ -41,6 +41,13 @@
                 <input asp-for="Password" class="form-control" autocomplete="current-password" />
                 <span asp-validation-for="Password" class="field-error"></span>
             </div>
+            <div class="login-options">
+                <label class="remember-option">
+                    <input asp-for="RememberMe" />
+                    <span>Remember me</span>
+                </label>
+                <a asp-controller="MemberPassword" asp-action="ForgotPassword">Forgot password?</a>
+            </div>
             <button class="btn btn-primary login-submit" type="submit">Sign In</button>
         </form>
         <p class="login-footer">New to SOMAMS? <a asp-action="Register">Register for the organization</a></p>

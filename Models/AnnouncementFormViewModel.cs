@@ -12,7 +12,7 @@ public sealed class AnnouncementFormViewModel
     [StringLength(5000, MinimumLength = 1)]
     public string Body { get; set; } = string.Empty;
 
-    public int? DivisionId { get; set; }
+    public int[] DivisionIds { get; set; } = [];
 
     public IReadOnlyList<Division> Divisions { get; init; } = [];
 }

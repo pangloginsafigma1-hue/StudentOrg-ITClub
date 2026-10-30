@@ -18,23 +18,32 @@
 
 <form asp-controller="Reports" asp-action="Index" method="get" class="page-card reports-division-filter">
     <div class="form-field">
-        <label for="reportDivision">Report division</label>
+        <label>Report divisions <small>(choose up to 2)</small></label>
         @if (Model.CanChooseDivision)
         {
-            <select id="reportDivision" name="divisionId" class="form-select">
-                <option value="" selected="@(Model.DivisionId is null ? "selected" : null)">All divisions</option>
+        <details class="division-dropdown" data-division-dropdown data-max-selections="2">
+            <summary class="division-dropdown-trigger">
+                <span data-division-label>Select divisions</span>
+                <span class="division-dropdown-chevron" aria-hidden="true"></span>
+            </summary>
+            <div class="division-dropdown-menu" role="group" aria-label="Report divisions">
+                <label class="division-check-option">
+                    <input type="checkbox" name="divisionIds" value="" @(Model.DivisionIds.Count == 0 ? "checked" : null) />
+                    <span>All divisions</span>
+                </label>
                 @foreach (var division in Model.Divisions)
                 {
-                    <option value="@division.DivisionId"
-                            selected="@(division.DivisionId == Model.DivisionId ? "selected" : null)">
-                        @division.Name
-                    </option>
+                <label class="division-check-option">
+                    <input type="checkbox" name="divisionIds" value="@division.DivisionId" checked="@(Model.DivisionIds.Contains(division.DivisionId) ? "checked" : null)" />
+                    <span>@division.Name</span>
+                </label>
                 }
-            </select>
+            </div>
+        </details>
         }
         else
         {
-            <input type="hidden" name="divisionId" value="@Model.DivisionId" />
+            @foreach (var divisionId in Model.DivisionIds) { <input type="hidden" name="divisionIds" value="@divisionId" /> }
             <span>@User.FindFirst("division_name")?.Value</span>
         }
     </div>
@@ -87,7 +96,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post">
-                <input type="hidden" name="divisionId" value="@Model.DivisionId" />
+                @foreach (var divisionId in Model.DivisionIds) { <input type="hidden" name="divisionIds" value="@divisionId" /> }
                 <div class="modal-body">
                     <p>Export the full organization list or narrow the report using the filters below.</p>
                     <div class="form-field">
@@ -139,7 +148,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form asp-controller="Reports" asp-action="ExportActivities" method="post">
-                <input type="hidden" name="divisionId" value="@Model.DivisionId" />
+                @foreach (var divisionId in Model.DivisionIds) { <input type="hidden" name="divisionIds" value="@divisionId" /> }
                 <div class="modal-body">
                     <p>Select the activity dates to include in the Word report.</p>
                     <div class="form-field">
@@ -168,7 +177,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form asp-controller="Reports" asp-action="ExportAttendance" method="post">
-                <input type="hidden" name="divisionId" value="@Model.DivisionId" />
+                @foreach (var divisionId in Model.DivisionIds) { <input type="hidden" name="divisionIds" value="@divisionId" /> }
                 <div class="modal-body">
                     @if (Model.RecordedActivities.Count == 0)
                     {

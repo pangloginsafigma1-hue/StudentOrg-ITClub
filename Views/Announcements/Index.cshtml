@@ -30,7 +30,8 @@
         @foreach (var announcement in Model)
         {
             var canDeleteAnnouncement = isSuperAdmin
-                || divisionScope.HasValue && announcement.DivisionId == divisionScope;
+                || divisionScope.HasValue
+                    && (announcement.DivisionId == divisionScope || announcement.DivisionId2 == divisionScope);
             <article class="announcement-card">
                 <header class="announcement-card-header">
                     <div class="announcement-title-group">

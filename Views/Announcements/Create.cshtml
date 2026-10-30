@@ -16,15 +16,27 @@
         @if (User.IsInRole("SuperAdmin"))
         {
             <div class="form-field">
-                <label asp-for="DivisionId">Audience</label>
-                <select asp-for="DivisionId" class="form-select">
-                    <option value="">All divisions (organization-wide)</option>
-                    @foreach (var division in Model.Divisions)
-                    {
-                        <option value="@division.DivisionId">@division.Name</option>
-                    }
-                </select>
-                <span asp-validation-for="DivisionId" class="field-error"></span>
+                <label>Audience <small>(choose up to 2)</small></label>
+                <details class="division-dropdown" data-division-dropdown data-max-selections="2">
+                    <summary class="division-dropdown-trigger">
+                        <span data-division-label>Select an audience</span>
+                        <span class="division-dropdown-chevron" aria-hidden="true"></span>
+                    </summary>
+                    <div class="division-dropdown-menu" role="group" aria-label="Announcement audience">
+                        <label class="division-check-option">
+                            <input type="checkbox" name="DivisionIds" value="" checked="@(Model.DivisionIds.Length == 0 ? "checked" : null)" />
+                            <span>All divisions (organization-wide)</span>
+                        </label>
+                        @foreach (var division in Model.Divisions)
+                        {
+                            <label class="division-check-option">
+                                <input type="checkbox" name="DivisionIds" value="@division.DivisionId" checked="@(Model.DivisionIds.Contains(division.DivisionId) ? "checked" : null)" />
+                                <span>@division.Name</span>
+                            </label>
+                        }
+                    </div>
+                </details>
+                <span asp-validation-for="DivisionIds" class="field-error"></span>
             </div>
         }
         <div class="member-actions">

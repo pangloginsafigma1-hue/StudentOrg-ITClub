@@ -20,5 +20,7 @@ public sealed class Activity
 
     public int? DivisionId { get; init; }
 
+    public int? DivisionId2 { get; init; }
+
     public string? DivisionName { get; init; }
 }

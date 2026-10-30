@@ -18,8 +18,8 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
             FROM members m
             JOIN activities a ON a.activity_id = @activityId
             WHERE m.status = 'Active'
-              AND (a.division_id IS NULL OR m.division_id = a.division_id)
-              AND (@divisionId IS NULL OR a.division_id = @divisionId)
+              AND (a.division_id IS NULL OR m.division_id = a.division_id OR m.division_id = a.division_id_2)
+              AND (@divisionId IS NULL OR a.division_id = @divisionId OR a.division_id_2 = @divisionId)
             ORDER BY m.student_name
             """,
             connection);
@@ -202,8 +202,8 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
             FROM members m
             JOIN activities a ON a.activity_id = @activityId
             WHERE m.status = 'Active'
-              AND (a.division_id IS NULL OR m.division_id = a.division_id)
-              AND (@divisionId IS NULL OR a.division_id = @divisionId)
+              AND (a.division_id IS NULL OR m.division_id = a.division_id OR m.division_id = a.division_id_2)
+              AND (@divisionId IS NULL OR a.division_id = @divisionId OR a.division_id_2 = @divisionId)
             ORDER BY m.member_id
             FOR UPDATE
             """,

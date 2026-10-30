@@ -10,7 +10,7 @@ public sealed class ReportsViewModel
 
     public IReadOnlyList<Division> Divisions { get; init; } = [];
 
-    public int? DivisionId { get; init; }
+    public IReadOnlyList<int> DivisionIds { get; init; } = [];
 
     public bool CanChooseDivision { get; init; }
 

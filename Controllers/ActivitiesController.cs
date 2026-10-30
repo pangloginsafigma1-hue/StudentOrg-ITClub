@@ -61,9 +61,22 @@ public sealed class ActivitiesController(
         var divisionScope = UserDivision.GetDivisionId(User);
         if (divisionScope is int assignedDivisionId)
         {
+            form.DivisionIds = [assignedDivisionId];
             form.DivisionId = assignedDivisionId;
             ModelState.Remove(nameof(form.DivisionId));
             ModelState.Remove("Form.DivisionId");
+        }
+        else
+        {
+            form.DivisionIds = form.DivisionIds
+                .Where(id => id > 0)
+                .Distinct()
+                .ToArray();
+            form.DivisionId = form.DivisionIds.FirstOrDefault();
+            if (form.DivisionIds.Length > 2)
+            {
+                ModelState.AddModelError(nameof(form.DivisionIds), "Choose no more than two divisions.");
+            }
         }
 
         if (!MemberLookups.ActivityStatuses.Contains(form.Status, StringComparer.Ordinal))
@@ -121,7 +134,8 @@ public sealed class ActivitiesController(
             ActivityEndDate = form.ActivityEndDate!.Value,
             Status = form.Status,
             Description = form.Description?.Trim() ?? string.Empty,
-            DivisionId = form.DivisionId
+            DivisionId = form.DivisionId,
+            DivisionId2 = form.DivisionIds.Skip(1).FirstOrDefault()
         };
 
         try
@@ -233,7 +247,11 @@ public sealed class ActivitiesController(
             Activities = await activityRepository.GetAllAsync(search, divisionId, cancellationToken),
             Divisions = await divisionRepository.GetAllAsync(cancellationToken),
             CanChooseDivision = isSuperAdmin,
-            Form = new ActivityFormViewModel { DivisionId = divisionId }
+            Form = new ActivityFormViewModel
+            {
+                DivisionId = divisionId,
+                DivisionIds = divisionId is int id ? [id] : []
+            }
         };
     }
 

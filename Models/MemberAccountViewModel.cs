@@ -12,7 +12,7 @@ public sealed class MemberAccountViewModel
     public string CurrentPassword { get; set; } = string.Empty;
 
     [Required]
-    [StringLength(72, MinimumLength = 12)]
+    [StringLength(72, MinimumLength = 8)]
     [DataType(DataType.Password)]
     [Display(Name = "New password")]
     public string NewPassword { get; set; } = string.Empty;
