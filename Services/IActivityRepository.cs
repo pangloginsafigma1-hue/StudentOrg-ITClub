@@ -16,4 +16,16 @@ public interface IActivityRepository
         int? divisionId,
         bool includeRecorded,
         CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<ActivityRegistration>> GetRegistrationsAsync(int activityId, int? divisionId, CancellationToken cancellationToken);
+
+    Task<bool> SetParticipationAsync(
+        int activityId,
+        string memberId,
+        bool participated,
+        string participationType,
+        string? notes,
+        int recordedBy,
+        int? divisionId,
+        CancellationToken cancellationToken);
 }

@@ -23,4 +23,8 @@ public sealed class Activity
     public int? DivisionId2 { get; init; }
 
     public string? DivisionName { get; init; }
+
+    public bool IsRegistered { get; init; }
+
+    public bool IsRegistrationOpen { get; init; }
 }

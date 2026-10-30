@@ -21,6 +21,12 @@ public interface IMemberPortalRepository
 
     Task<MemberPortalViewModel> GetPortalAsync(string memberId, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<MemberStatusHistory>> GetStatusHistoryAsync(string memberId, CancellationToken cancellationToken);
+
+    Task<bool> RegisterForActivityAsync(string memberId, int activityId, CancellationToken cancellationToken);
+
+    Task<bool> UnregisterFromActivityAsync(string memberId, int activityId, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<MemberPortalAccountListItem>> GetPortalAccountsAsync(CancellationToken cancellationToken);
 
     Task<bool> SetPortalAccountActiveAsync(

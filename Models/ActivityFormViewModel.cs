@@ -42,5 +42,8 @@ public sealed class ActivityFormViewModel
     [Display(Name = "Description (optional)")]
     public string? Description { get; set; }
 
+    [Display(Name = "Open member registration")]
+    public bool IsRegistrationOpen { get; set; } = true;
+
     public IReadOnlyList<string> Statuses { get; init; } = MemberLookups.ActivityStatuses;
 }

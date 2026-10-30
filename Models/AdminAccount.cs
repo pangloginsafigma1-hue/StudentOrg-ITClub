@@ -15,4 +15,10 @@ public sealed class AdminAccount
     public int? DivisionId { get; init; }
 
     public string? DivisionName { get; init; }
+
+    public string Position { get; init; } = "Administrator";
+
+    public DateTime? TermStart { get; init; }
+
+    public DateTime? TermEnd { get; init; }
 }

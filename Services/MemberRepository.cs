@@ -133,6 +133,32 @@ public sealed class MemberRepository(MySqlConnectionFactory connectionFactory) :
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task RecordStatusAsync(string memberId, string status, string? reason, int? divisionId, CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await using var close = new MySqlCommand(
+            "UPDATE member_status_history SET effective_to = CURRENT_TIMESTAMP() WHERE member_id = @memberId AND effective_to IS NULL", connection, transaction);
+        close.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = memberId;
+        await close.ExecuteNonQueryAsync(cancellationToken);
+        await using var update = new MySqlCommand(
+            "UPDATE members SET status = @status WHERE member_id = @memberId AND (@divisionId IS NULL OR division_id = @divisionId)", connection, transaction);
+        update.Parameters.Add("@status", MySqlDbType.VarChar, 20).Value = status;
+        update.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = memberId;
+        update.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        if (await update.ExecuteNonQueryAsync(cancellationToken) == 1)
+        {
+            await using var insert = new MySqlCommand(
+                "INSERT INTO member_status_history (member_id, status, effective_from, reason) VALUES (@memberId, @status, CURRENT_TIMESTAMP(), @reason)", connection, transaction);
+            insert.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = memberId;
+            insert.Parameters.Add("@status", MySqlDbType.VarChar, 20).Value = status;
+            insert.Parameters.Add("@reason", MySqlDbType.VarChar, 500).Value = (object?)reason ?? DBNull.Value;
+            await insert.ExecuteNonQueryAsync(cancellationToken);
+        }
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     private static void AddMemberParameters(MySqlCommand command, Member member)
     {
         command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = member.MemberId;

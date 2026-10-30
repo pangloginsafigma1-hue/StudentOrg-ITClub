@@ -13,4 +13,6 @@ public interface IMemberRepository
     Task UpdateAsync(Member member, int? divisionId, CancellationToken cancellationToken);
 
     Task DeleteAsync(string memberId, int? divisionId, CancellationToken cancellationToken);
+
+    Task RecordStatusAsync(string memberId, string status, string? reason, int? divisionId, CancellationToken cancellationToken);
 }

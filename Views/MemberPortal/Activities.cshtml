@@ -1,4 +1,5 @@
 @model MemberPortalViewModel
+@if (TempData["SuccessMessage"] is string success) { <div class="alert alert-success">@success</div> }
 <section class="page-card">
     <h2>Upcoming Activities</h2>
     @if (Model.UpcomingActivities.Count == 0)
@@ -9,7 +10,7 @@
     {
         <div class="table-responsive">
             <table class="table somams-table">
-                <thead><tr><th>Activity</th><th>Date</th><th>Location</th><th>Division</th></tr></thead>
+                <thead><tr><th>Activity</th><th>Date</th><th>Location</th><th>Division</th><th></th></tr></thead>
                 <tbody>
                     @foreach (var activity in Model.UpcomingActivities)
                     {
@@ -18,6 +19,16 @@
                             <td>@activity.ActivityDate.ToString("MMM d, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM d, yyyy h:mm tt")</td>
                             <td>@activity.Location</td>
                             <td>@(activity.DivisionName ?? "Organization-wide")</td>
+                            <td>
+                                @if (activity.IsRegistered)
+                                {
+                                    <form asp-action="Unregister" method="post"><input type="hidden" name="activityId" value="@activity.ActivityId" /><button class="btn btn-outline-danger btn-sm">Unregister</button></form>
+                                }
+                                else
+                                {
+                                    <form asp-action="Register" method="post"><input type="hidden" name="activityId" value="@activity.ActivityId" /><button class="btn btn-primary btn-sm">Register</button></form>
+                                }
+                            </td>
                         </tr>
                     }
                 </tbody>

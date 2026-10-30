@@ -19,6 +19,24 @@ public sealed class MemberPortalController(
     public Task<IActionResult> Activities(CancellationToken cancellationToken) =>
         RenderPortalPageAsync("Activities", "Activities", "Upcoming activities for you.", cancellationToken);
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Register(int activityId, CancellationToken cancellationToken)
+    {
+        await memberRepository.RegisterForActivityAsync(GetMemberId(), activityId, cancellationToken);
+        TempData["SuccessMessage"] = "You are registered for this activity.";
+        return RedirectToAction(nameof(Activities));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Unregister(int activityId, CancellationToken cancellationToken)
+    {
+        await memberRepository.UnregisterFromActivityAsync(GetMemberId(), activityId, cancellationToken);
+        TempData["SuccessMessage"] = "Your activity registration was removed.";
+        return RedirectToAction(nameof(Activities));
+    }
+
     [HttpGet]
     public Task<IActionResult> Record(CancellationToken cancellationToken) =>
         RenderAccountPageAsync(new MemberAccountViewModel(), cancellationToken);

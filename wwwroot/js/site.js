@@ -144,6 +144,7 @@ if (activityModal instanceof HTMLElement) {
         const date = activityModal.querySelector("#activityDate");
         const endDate = activityModal.querySelector("#activityEndDate");
         const status = activityModal.querySelector("#activityStatus");
+        const registrationOpen = activityModal.querySelector("#activityRegistrationOpen");
         const description = activityModal.querySelector("#activityDescription");
         const division = activityModal.querySelector("#activityDivision");
         const title = activityModal.querySelector("#activityModalTitle");
@@ -158,6 +159,7 @@ if (activityModal instanceof HTMLElement) {
             || !(date instanceof HTMLInputElement)
             || !(endDate instanceof HTMLInputElement)
             || !(status instanceof HTMLSelectElement)
+            || !(registrationOpen instanceof HTMLInputElement)
             || !(description instanceof HTMLTextAreaElement)
             || !(division instanceof HTMLInputElement || division instanceof HTMLSelectElement)
             || !title
@@ -180,6 +182,7 @@ if (activityModal instanceof HTMLElement) {
         endDate.value = isEdit ? trigger.dataset.activityEndDate ?? `${today}T10:00` : `${today}T10:00`;
         endDate.min = date.value;
         status.value = isEdit ? trigger.dataset.activityStatus ?? "Upcoming" : "Upcoming";
+        registrationOpen.checked = !isEdit || trigger.dataset.activityRegistrationOpen !== "False";
         division.value = isEdit ? trigger.dataset.activityDivisionId ?? "" : "";
         document.querySelectorAll("input[name='Form.DivisionIds']").forEach((input) => {
             if (input instanceof HTMLInputElement) {
@@ -197,6 +200,32 @@ if (activityModal instanceof HTMLElement) {
     if (activityModal.dataset.openModal === "true" && window.bootstrap) {
         bootstrap.Modal.getOrCreateInstance(activityModal).show();
     }
+}
+
+const adminTermModal = document.querySelector("#adminTermModal");
+if (adminTermModal instanceof HTMLElement) {
+    adminTermModal.addEventListener("show.bs.modal", (event) => {
+        if (!(event instanceof Event) || !(event.relatedTarget instanceof HTMLElement)) {
+            return;
+        }
+
+        const trigger = event.relatedTarget;
+        const adminId = adminTermModal.querySelector("#adminTermId");
+        const position = adminTermModal.querySelector("#adminTermPosition");
+        const start = adminTermModal.querySelector("#adminTermStart");
+        const description = adminTermModal.querySelector("#adminTermModalDescription");
+        if (!(adminId instanceof HTMLInputElement)
+            || !(position instanceof HTMLInputElement)
+            || !(start instanceof HTMLInputElement)
+            || !(description instanceof HTMLElement)) {
+            return;
+        }
+
+        adminId.value = trigger.dataset.adminTermId ?? "";
+        position.value = trigger.dataset.adminTermPosition ?? "";
+        start.value = new Date().toISOString().slice(0, 10);
+        description.textContent = `Record a position term for ${trigger.dataset.adminTermName ?? "this administrator"}.`;
+    });
 }
 
 const activityForm = document.querySelector("#activityModal form");

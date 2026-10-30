@@ -1,0 +1,34 @@
+@model IReadOnlyList<ITClubOrg.Models.ActivityRegistration>
+@{
+    var activity = (ITClubOrg.Models.Activity)ViewData["Activity"]!;
+}
+<section class="page-card">
+    <h2>Registrations: @activity.ActivityName</h2>
+    <a class="btn btn-outline-primary mb-3" asp-action="Index">Back to activities</a>
+    @if (Model.Count == 0) { <p class="empty-state">No members have registered yet.</p> }
+    else {
+        <table class="table somams-table"><thead><tr><th>Member</th><th>Registered</th><th>Participation details</th><th>Recorded</th><th></th></tr></thead><tbody>
+        @foreach (var registration in Model) {
+            <tr><td>@registration.MemberName (@registration.MemberId)</td><td>@registration.RegisteredAt.ToString("g")</td><td>
+                <form asp-action="SetParticipation" method="post" class="d-flex gap-1 align-items-start">
+                    <input type="hidden" name="activityId" value="@registration.ActivityId" />
+                    <input type="hidden" name="memberId" value="@registration.MemberId" />
+                    <input type="hidden" name="participated" value="@(registration.Participated)" />
+                    <select name="participationType" class="form-select form-select-sm" required aria-label="Participation type">
+                        <option value="" selected="@(registration.ParticipationType is null)">Select contribution</option>
+                        @foreach (var type in new[] { "Attendee", "Volunteer", "Organizer", "Speaker", "Facilitator", "Technical Staff", "Team Lead", "Competitor", "Other" })
+                        {
+                            <option value="@type" selected="@(type == registration.ParticipationType)">@type</option>
+                        }
+                    </select>
+                    <input name="notes" class="form-control form-control-sm" maxlength="1000" value="@registration.Notes" placeholder="Optional notes" aria-label="Participation notes" />
+                    <button class="btn btn-sm btn-primary" type="submit">Save</button>
+                </form>
+            </td><td>
+                @(registration.RecordedAt?.ToString("g") ?? "Not recorded")
+                @if (registration.RecordedBy is not null) { <small class="d-block text-muted">Admin #@registration.RecordedBy</small> }
+            </td><td>@(registration.Participated ? "Participated" : "Registered")</td></tr>
+        }
+        </tbody></table>
+    }
+</section>

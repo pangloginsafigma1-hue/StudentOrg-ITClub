@@ -13,6 +13,16 @@ public sealed class MembersController(
     IEmailSender emailSender,
     ILogger<MembersController> logger) : Controller
 {
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetStatus(string memberId, string status, string? reason, CancellationToken cancellationToken)
+    {
+        if (!MemberLookups.Statuses.Contains(status, StringComparer.Ordinal))
+            return BadRequest("Invalid membership status.");
+        await memberRepository.RecordStatusAsync(memberId, status, reason, UserDivision.GetDivisionId(User), cancellationToken);
+        TempData["SuccessMessage"] = "Member status and history updated.";
+        return RedirectToAction(nameof(Index));
+    }
     private const int MaxSearchLength = 100;
 
     [HttpGet]

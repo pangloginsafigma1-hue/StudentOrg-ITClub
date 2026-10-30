@@ -13,6 +13,16 @@ public sealed class AdminAccountsController(
     IDivisionRepository divisionRepository,
     ILogger<AdminAccountsController> logger) : Controller
 {
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AssignTerm(int adminId, string position, DateTime termStart, DateTime? termEnd, CancellationToken cancellationToken)
+    {
+        if (adminId <= 0 || string.IsNullOrWhiteSpace(position) || termStart == default || (termEnd is not null && termEnd < termStart))
+            return BadRequest("Invalid administrator term.");
+        await accountRepository.RecordPositionTermAsync(adminId, position, termStart, termEnd, cancellationToken);
+        TempData["SuccessMessage"] = "Administrator position term recorded.";
+        return RedirectToAction(nameof(Index));
+    }
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {

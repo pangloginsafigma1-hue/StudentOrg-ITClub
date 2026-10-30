@@ -17,4 +17,10 @@ public sealed class AdminAccountListItem
     public string? DivisionName { get; init; }
 
     public bool IsActive { get; init; }
+
+    public string? CurrentPosition { get; init; }
+
+    public DateTime? CurrentTermStart { get; init; }
+
+    public DateTime? CurrentTermEnd { get; init; }
 }

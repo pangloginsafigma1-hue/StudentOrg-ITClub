@@ -55,7 +55,16 @@
                             <td>@member.Course</td>
                             <td>@member.YearLevel</td>
                             <td>@member.Position</td>
-                            <td><span class="status-badge @(member.Status == "Active" ? "status-active" : "status-inactive")">@member.Status</span></td>
+                            <td>
+                                <form asp-action="SetStatus" method="post" class="d-flex gap-1">
+                                    <input type="hidden" name="memberId" value="@member.MemberId" />
+                                    <select name="status" class="form-select form-select-sm">
+                                        @foreach (var status in MemberLookups.Statuses) { <option selected="@(status == member.Status)" value="@status">@status</option> }
+                                    </select>
+                                    <input name="reason" class="form-control form-control-sm" placeholder="Reason" aria-label="Status reason" />
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
+                                </form>
+                            </td>
                             <td class="actions-cell">
                                 <a class="icon-action" asp-controller="Membership" asp-action="Edit" asp-route-id="@member.MemberId"
                                    aria-label="Edit @member.StudentName" title="Edit this member">

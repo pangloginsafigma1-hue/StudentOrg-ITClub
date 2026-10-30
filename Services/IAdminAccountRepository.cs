@@ -8,6 +8,8 @@ public interface IAdminAccountRepository
 
     Task<AdminAccountFormViewModel?> GetByIdAsync(int adminId, CancellationToken cancellationToken);
 
+    Task RecordPositionTermAsync(int adminId, string position, DateTime termStart, DateTime? termEnd, CancellationToken cancellationToken);
+
     Task<bool> IsUsernameTakenAsync(string username, int exceptAdminId, CancellationToken cancellationToken);
 
     Task CreateAsync(AdminAccountFormViewModel account, CancellationToken cancellationToken);

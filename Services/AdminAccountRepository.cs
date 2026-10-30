@@ -7,6 +7,19 @@ public sealed class AdminAccountRepository(
     MySqlConnectionFactory connectionFactory,
     IDivisionRepository divisionRepository) : IAdminAccountRepository
 {
+    public async Task RecordPositionTermAsync(int adminId, string position, DateTime termStart, DateTime? termEnd, CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            @"INSERT INTO admin_position_history (admin_id, position, term_start, term_end)
+               VALUES (@adminId, @position, @termStart, @termEnd)", connection);
+        command.Parameters.Add("@adminId", MySqlDbType.Int32).Value = adminId;
+        command.Parameters.Add("@position", MySqlDbType.VarChar, 100).Value = position.Trim();
+        command.Parameters.Add("@termStart", MySqlDbType.Date).Value = termStart.Date;
+        command.Parameters.Add("@termEnd", MySqlDbType.Date).Value = (object?)termEnd?.Date ?? DBNull.Value;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
     public async Task<IReadOnlyList<AdminAccountListItem>> GetAllAsync(CancellationToken cancellationToken)
     {
         await using var connection = connectionFactory.CreateConnection();
@@ -14,9 +27,19 @@ public sealed class AdminAccountRepository(
         await using var command = new MySqlCommand(
             """
             SELECT a.admin_id, a.full_name, a.username, a.email, a.role,
-                   a.division_id, d.name AS division_name, a.is_active
+                   a.division_id, d.name AS division_name, a.is_active,
+                   h.position AS current_position, h.term_start AS current_term_start,
+                   h.term_end AS current_term_end
             FROM admins a
             LEFT JOIN divisions d ON d.division_id = a.division_id
+            LEFT JOIN admin_position_history h
+                ON h.history_id = (
+                    SELECT h2.history_id
+                    FROM admin_position_history h2
+                    WHERE h2.admin_id = a.admin_id
+                    ORDER BY h2.term_start DESC, h2.history_id DESC
+                    LIMIT 1
+                )
             ORDER BY a.role, d.name, a.full_name
             """,
             connection);
@@ -39,6 +62,16 @@ public sealed class AdminAccountRepository(
                     ? null
                     : reader.GetString("division_name"),
                 IsActive = reader.GetBoolean("is_active")
+                ,
+                CurrentPosition = reader.IsDBNull(reader.GetOrdinal("current_position"))
+                    ? null
+                    : reader.GetString("current_position"),
+                CurrentTermStart = reader.IsDBNull(reader.GetOrdinal("current_term_start"))
+                    ? null
+                    : reader.GetDateTime("current_term_start"),
+                CurrentTermEnd = reader.IsDBNull(reader.GetOrdinal("current_term_end"))
+                    ? null
+                    : reader.GetDateTime("current_term_end")
             });
         }
 

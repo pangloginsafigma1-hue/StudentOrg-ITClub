@@ -17,7 +17,7 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
         command.CommandText =
             """
             SELECT a.activity_id, a.activity_name, a.location, a.activity_start_at, a.activity_end_at, a.status, a.description,
-                   a.attendance_done, a.division_id, a.division_id_2, d.name AS division_name, d2.name AS division_name_2
+                   a.attendance_done, a.registration_open, a.division_id, a.division_id_2, d.name AS division_name, d2.name AS division_name_2
             FROM activities a
             LEFT JOIN divisions d ON d.division_id = a.division_id
             LEFT JOIN divisions d2 ON d2.division_id = a.division_id_2
@@ -57,7 +57,7 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
         await using var command = new MySqlCommand(
             """
             SELECT a.activity_id, a.activity_name, a.location, a.activity_start_at, a.activity_end_at, a.status, a.description,
-                   a.attendance_done, a.division_id, a.division_id_2, d.name AS division_name, d2.name AS division_name_2
+                   a.attendance_done, a.registration_open, a.division_id, a.division_id_2, d.name AS division_name, d2.name AS division_name_2
             FROM activities a
             LEFT JOIN divisions d ON d.division_id = a.division_id
             LEFT JOIN divisions d2 ON d2.division_id = a.division_id_2
@@ -89,9 +89,9 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
         command.CommandText = activity.ActivityId == 0
             ? """
               INSERT INTO activities
-                  (activity_name, location, activity_date, activity_start_at, activity_end_at, status, description, division_id, division_id_2)
+                  (activity_name, location, activity_date, activity_start_at, activity_end_at, status, description, registration_open, division_id, division_id_2)
               VALUES
-                  (@activityName, @location, @activityDate, @activityStartAt, @activityEndDate, @status, @description, @activityDivisionId, @activityDivisionId2)
+                  (@activityName, @location, @activityDate, @activityStartAt, @activityEndDate, @status, @description, @registrationOpen, @activityDivisionId, @activityDivisionId2)
               """
             : """
               UPDATE activities
@@ -102,7 +102,8 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
               activity_end_at = @activityEndDate,
               status = CASE WHEN attendance_done = 1 THEN 'Completed' ELSE @status END,
                   description = @description,
-                  division_id = @activityDivisionId,
+              registration_open = @registrationOpen,
+              division_id = @activityDivisionId,
                   division_id_2 = @activityDivisionId2
               WHERE activity_id = @activityId
                 AND (@divisionId IS NULL OR division_id = @divisionId OR division_id_2 = @divisionId)
@@ -112,6 +113,7 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
             (object?)activity.DivisionId ?? DBNull.Value;
         command.Parameters.Add("@activityDivisionId2", MySqlDbType.Int32).Value =
             (object?)activity.DivisionId2 ?? DBNull.Value;
+        command.Parameters.Add("@registrationOpen", MySqlDbType.Bool).Value = activity.IsRegistrationOpen;
         if (activity.ActivityId > 0)
         {
             command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activity.ActivityId;
@@ -164,6 +166,70 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
         return activities;
     }
 
+    public async Task<IReadOnlyList<ActivityRegistration>> GetRegistrationsAsync(int activityId, int? divisionId, CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            @"SELECT r.activity_id, a.activity_name, r.member_id, m.student_name, r.registered_at, r.participated,
+                      r.participation_type, r.notes, r.recorded_by, r.recorded_at
+               FROM activity_registrations r JOIN activities a ON a.activity_id = r.activity_id
+               JOIN members m ON m.member_id = r.member_id
+               WHERE r.activity_id = @activityId
+                 AND (@divisionId IS NULL OR a.division_id = @divisionId OR a.division_id_2 = @divisionId)
+               ORDER BY m.student_name", connection);
+        command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
+        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var result = new List<ActivityRegistration>();
+        while (await reader.ReadAsync(cancellationToken))
+            result.Add(new ActivityRegistration
+            {
+                ActivityId = reader.GetInt32("activity_id"),
+                ActivityName = reader.GetString("activity_name"),
+                MemberId = reader.GetString("member_id"),
+                MemberName = reader.GetString("student_name"),
+                RegisteredAt = reader.GetDateTime("registered_at"),
+                Participated = reader.GetBoolean("participated"),
+                ParticipationType = reader.IsDBNull(reader.GetOrdinal("participation_type")) ? null : reader.GetString("participation_type"),
+                Notes = reader.IsDBNull(reader.GetOrdinal("notes")) ? null : reader.GetString("notes"),
+                RecordedBy = reader.IsDBNull(reader.GetOrdinal("recorded_by")) ? null : reader.GetInt32("recorded_by"),
+                RecordedAt = reader.IsDBNull(reader.GetOrdinal("recorded_at")) ? null : reader.GetDateTime("recorded_at")
+            });
+        return result;
+    }
+
+    public async Task<bool> SetParticipationAsync(
+        int activityId,
+        string memberId,
+        bool participated,
+        string participationType,
+        string? notes,
+        int recordedBy,
+        int? divisionId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            @"UPDATE activity_registrations r JOIN activities a ON a.activity_id = r.activity_id
+               SET r.participated = @participated,
+                   r.participation_type = @participationType,
+                   r.notes = @notes,
+                   r.recorded_by = @recordedBy,
+                   r.recorded_at = CURRENT_TIMESTAMP()
+               WHERE r.activity_id = @activityId AND r.member_id = @memberId
+                 AND (@divisionId IS NULL OR a.division_id = @divisionId OR a.division_id_2 = @divisionId)", connection);
+        command.Parameters.Add("@participated", MySqlDbType.Bool).Value = participated;
+        command.Parameters.Add("@participationType", MySqlDbType.VarChar, 30).Value = participationType;
+        command.Parameters.Add("@notes", MySqlDbType.VarChar, 1000).Value = (object?)notes ?? DBNull.Value;
+        command.Parameters.Add("@recordedBy", MySqlDbType.Int32).Value = recordedBy;
+        command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
+        command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = memberId;
+        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
     internal static Activity MapActivity(MySqlDataReader reader) =>
         new()
         {
@@ -177,14 +243,22 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
                 ? string.Empty
                 : reader.GetString("description"),
             AttendanceDone = reader.GetBoolean("attendance_done"),
+            IsRegistrationOpen = reader.GetBoolean("registration_open"),
             DivisionId = reader.IsDBNull(reader.GetOrdinal("division_id"))
                 ? null
                 : reader.GetInt32("division_id"),
             DivisionId2 = reader.IsDBNull(reader.GetOrdinal("division_id_2"))
                 ? null
                 : reader.GetInt32("division_id_2"),
-            DivisionName = ReadDivisionNames(reader)
+            DivisionName = ReadDivisionNames(reader),
+            IsRegistered = HasColumn(reader, "is_registered") && reader.GetBoolean("is_registered")
         };
+
+    private static bool HasColumn(MySqlDataReader reader, string name)
+    {
+        try { return reader.GetOrdinal(name) >= 0; }
+        catch (IndexOutOfRangeException) { return false; }
+    }
 
     private static string? ReadDivisionNames(MySqlDataReader reader)
     {

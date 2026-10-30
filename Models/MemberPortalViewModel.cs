@@ -24,6 +24,28 @@ public sealed class MemberAttendanceRecord
     public bool IsPresent { get; init; }
 }
 
+public sealed class MemberStatusHistory
+{
+    public string Status { get; init; } = string.Empty;
+    public DateTime EffectiveFrom { get; init; }
+    public DateTime? EffectiveTo { get; init; }
+    public string? Reason { get; init; }
+}
+
+public sealed class ActivityRegistration
+{
+    public int ActivityId { get; init; }
+    public string ActivityName { get; init; } = string.Empty;
+    public string MemberId { get; init; } = string.Empty;
+    public string MemberName { get; init; } = string.Empty;
+    public DateTime RegisteredAt { get; init; }
+    public bool Participated { get; init; }
+    public string? ParticipationType { get; init; }
+    public string? Notes { get; init; }
+    public int? RecordedBy { get; init; }
+    public DateTime? RecordedAt { get; init; }
+}
+
 public sealed class MemberAnnouncement
 {
     public int AnnouncementId { get; init; }

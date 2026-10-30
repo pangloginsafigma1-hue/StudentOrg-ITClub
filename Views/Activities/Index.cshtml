@@ -42,6 +42,7 @@
                         <th scope="col">Date</th>
                         <th scope="col">Location</th>
                         <th scope="col">Status</th>
+                        <th scope="col">Registration</th>
                         <th scope="col">Attendance</th>
                         <th scope="col" class="activity-actions-heading">Actions</th>
                     </tr>
@@ -57,11 +58,17 @@
                             <td>@activity.Location</td>
                             <td><span class="activity-status status-@activity.Status.ToLowerInvariant()">@activity.Status</span></td>
                             <td>
+                                <span class="status-badge @(activity.IsRegistrationOpen ? "status-active" : "status-inactive")">
+                                    @(activity.IsRegistrationOpen ? "Open" : "Closed")
+                                </span>
+                            </td>
+                            <td>
                                 <span class="status-badge @(activity.AttendanceDone ? "status-active" : "status-inactive")">
                                     @(activity.AttendanceDone ? "Recorded" : "Not yet")
                                 </span>
                             </td>
                             <td class="actions-cell">
+                                <a class="btn btn-sm btn-outline-primary" asp-controller="Activities" asp-action="Registrations" asp-route-activityId="@activity.ActivityId">Registrations</a>
                                 <button class="icon-action" type="button"
                                         data-bs-toggle="modal"
                                         data-bs-target="#activityModal"
@@ -73,6 +80,7 @@
                                         data-activity-end-date="@activity.ActivityEndDate.ToString("yyyy-MM-dd'T'HH:mm")"
                                         data-activity-status="@activity.Status"
                                         data-activity-description="@activity.Description"
+                                        data-activity-registration-open="@activity.IsRegistrationOpen"
                                         data-activity-division-id="@activity.DivisionId"
                                         data-activity-division-id-2="@activity.DivisionId2"
                                         aria-label="Edit @activity.ActivityName"
@@ -189,6 +197,13 @@
                             <label asp-for="Form.Description"></label>
                             <textarea asp-for="Form.Description" class="form-control" rows="4" id="activityDescription"></textarea>
                             <span asp-validation-for="Form.Description" class="field-error"></span>
+                        </div>
+                        <div class="form-field activity-registration-field">
+                            <label class="form-check">
+                                <input asp-for="Form.IsRegistrationOpen" class="form-check-input" id="activityRegistrationOpen" />
+                                <span class="form-check-label">Open member registration</span>
+                            </label>
+                            <small class="field-hint">Members can register for this activity from the member portal.</small>
                         </div>
                     </div>
                 </div>

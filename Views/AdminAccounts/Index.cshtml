@@ -38,6 +38,7 @@
                         <th scope="col">Email</th>
                         <th scope="col">Role</th>
                         <th scope="col">Division</th>
+                        <th scope="col">Current term</th>
                         <th scope="col">Status</th>
                         <th scope="col" class="actions-heading">Actions</th>
                     </tr>
@@ -52,6 +53,21 @@
                             <td>@(account.Role == "SuperAdmin" ? "Super Admin" : "Division Admin")</td>
                             <td>@(account.DivisionName ?? "All divisions")</td>
                             <td>
+                                @if (account.CurrentPosition is null)
+                                {
+                                    <span class="text-muted">No term recorded</span>
+                                }
+                                else
+                                {
+                                    <strong>@account.CurrentPosition</strong>
+                                    <small class="d-block text-muted">
+                                        @account.CurrentTermStart?.ToString("MMM d, yyyy")
+                                        –
+                                        @(account.CurrentTermEnd?.ToString("MMM d, yyyy") ?? "Present")
+                                    </small>
+                                }
+                            </td>
+                            <td>
                                 <span class="status-badge @(account.IsActive ? "status-active" : "status-inactive")">
                                     @(account.IsActive ? "Active" : "Disabled")
                                 </span>
@@ -61,6 +77,15 @@
                                    asp-controller="AdminAccounts"
                                    asp-action="Edit"
                                    asp-route-id="@account.AdminId">Manage</a>
+                                <button class="btn btn-sm btn-outline-primary"
+                                        type="button"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#adminTermModal"
+                                        data-admin-term-id="@account.AdminId"
+                                        data-admin-term-name="@account.FullName"
+                                        data-admin-term-position="@(account.Role == "SuperAdmin" ? "President" : "Division Head")">
+                                    Record term
+                                </button>
                             </td>
                         </tr>
                     }
@@ -77,6 +102,43 @@
         <p class="empty-state">No administrator accounts were found.</p>
     }
 </section>
+
+@section Scripts {
+    <script src="~/js/site.js" asp-append-version="true"></script>
+}
+
+<div class="modal fade" id="adminTermModal" tabindex="-1" aria-labelledby="adminTermModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content logout-modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="adminTermModalTitle">Record administrator term</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-controller="AdminAccounts" asp-action="AssignTerm" method="post">
+                <div class="modal-body">
+                    <p id="adminTermModalDescription">Record a position term.</p>
+                    <input type="hidden" name="adminId" id="adminTermId" />
+                    <div class="form-field">
+                        <label for="adminTermPosition">Position</label>
+                        <input class="form-control" name="position" id="adminTermPosition" maxlength="100" required />
+                    </div>
+                    <div class="form-field">
+                        <label for="adminTermStart">Start date</label>
+                        <input class="form-control" name="termStart" id="adminTermStart" type="date" required />
+                    </div>
+                    <div class="form-field">
+                        <label for="adminTermEnd">End date <small>(optional)</small></label>
+                        <input class="form-control" name="termEnd" id="adminTermEnd" type="date" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save term</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <section class="page-card admin-account-card">
     <div class="members-toolbar">

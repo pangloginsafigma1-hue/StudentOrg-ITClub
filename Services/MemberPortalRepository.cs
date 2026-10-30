@@ -196,11 +196,15 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         await using (var command = new MySqlCommand(
             """
             SELECT a.activity_id, a.activity_name, a.location, a.activity_start_at, a.activity_end_at, a.status, a.description,
-                   a.attendance_done, a.division_id, d.name AS division_name
+                   a.attendance_done, a.registration_open, a.division_id, a.division_id_2, d.name AS division_name,
+                   d2.name AS division_name_2, (r.activity_id IS NOT NULL) AS is_registered
             FROM activities a
             LEFT JOIN divisions d ON d.division_id = a.division_id
+            LEFT JOIN divisions d2 ON d2.division_id = a.division_id_2
+            LEFT JOIN activity_registrations r ON r.activity_id = a.activity_id AND r.member_id = @memberId
             WHERE a.activity_start_at >= CURRENT_TIMESTAMP()
               AND a.status <> 'Completed'
+              AND a.registration_open = 1
               AND (a.division_id IS NULL OR a.division_id = @divisionId OR a.division_id_2 = @divisionId)
             ORDER BY a.activity_start_at, a.activity_id
             LIMIT 20
@@ -208,6 +212,7 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
             connection))
         {
             command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)member.DivisionId ?? DBNull.Value;
+            command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = memberId;
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
@@ -669,6 +674,57 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         }
 
         return announcements;
+    }
+
+    public async Task<IReadOnlyList<MemberStatusHistory>> GetStatusHistoryAsync(
+        string memberId, CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            @"SELECT status, effective_from, effective_to, reason
+               FROM member_status_history WHERE member_id = @memberId
+               ORDER BY effective_from DESC, history_id DESC", connection);
+        command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = memberId;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var result = new List<MemberStatusHistory>();
+        while (await reader.ReadAsync(cancellationToken))
+            result.Add(new MemberStatusHistory
+            {
+                Status = reader.GetString("status"),
+                EffectiveFrom = reader.GetDateTime("effective_from"),
+                EffectiveTo = reader.IsDBNull(reader.GetOrdinal("effective_to")) ? null : reader.GetDateTime("effective_to"),
+                Reason = reader.IsDBNull(reader.GetOrdinal("reason")) ? null : reader.GetString("reason")
+            });
+        return result;
+    }
+
+    public async Task<bool> RegisterForActivityAsync(string memberId, int activityId, CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            @"INSERT INTO activity_registrations (activity_id, member_id)
+               SELECT a.activity_id, m.member_id FROM activities a JOIN members m ON m.member_id = @memberId
+               WHERE a.activity_id = @activityId AND m.status = 'Active'
+                 AND a.registration_open = 1
+                 AND (a.division_id IS NULL OR a.division_id = m.division_id OR a.division_id_2 = m.division_id)
+               ON DUPLICATE KEY UPDATE registered_at = registered_at", connection);
+        command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = memberId;
+        command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
+        return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+    }
+
+    public async Task<bool> UnregisterFromActivityAsync(string memberId, int activityId, CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            "DELETE FROM activity_registrations WHERE activity_id = @activityId AND member_id = @memberId AND participated = 0",
+            connection);
+        command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = memberId;
+        command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
     private static void AddRegistrationParameters(

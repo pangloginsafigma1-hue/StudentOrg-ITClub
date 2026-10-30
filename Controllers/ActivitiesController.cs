@@ -135,7 +135,8 @@ public sealed class ActivitiesController(
             Status = form.Status,
             Description = form.Description?.Trim() ?? string.Empty,
             DivisionId = form.DivisionId,
-            DivisionId2 = form.DivisionIds.Skip(1).FirstOrDefault()
+            DivisionId2 = form.DivisionIds.Skip(1).FirstOrDefault(),
+            IsRegistrationOpen = form.IsRegistrationOpen
         };
 
         try
@@ -194,6 +195,54 @@ public sealed class ActivitiesController(
         }
 
         return RedirectToAction(nameof(Index), new { search });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Registrations(int activityId, CancellationToken cancellationToken)
+    {
+        if (activityId <= 0) return BadRequest();
+        var activity = await activityRepository.GetByIdAsync(activityId, UserDivision.GetDivisionId(User), cancellationToken);
+        if (activity is null) return NotFound();
+        ViewData["Title"] = $"Registrations: {activity.ActivityName}";
+        ViewData["Activity"] = activity;
+        return View(await activityRepository.GetRegistrationsAsync(activityId, UserDivision.GetDivisionId(User), cancellationToken));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetParticipation(
+        int activityId,
+        string memberId,
+        bool participated,
+        string? participationType,
+        string? notes,
+        CancellationToken cancellationToken)
+    {
+        var allowedTypes = new[]
+        {
+            "Attendee", "Volunteer", "Organizer", "Speaker", "Facilitator",
+            "Technical Staff", "Team Lead", "Competitor", "Other"
+        };
+        participationType = participationType?.Trim();
+        notes = notes?.Trim();
+        if (activityId <= 0 || string.IsNullOrWhiteSpace(memberId)
+            || participationType is null || !allowedTypes.Contains(participationType, StringComparer.Ordinal)
+            || notes?.Length > 1000)
+        {
+            return BadRequest("Choose a valid participation type and keep notes within 1000 characters.");
+        }
+
+        var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+        await activityRepository.SetParticipationAsync(
+            activityId,
+            memberId,
+            participated,
+            participationType,
+            string.IsNullOrWhiteSpace(notes) ? null : notes,
+            adminId,
+            UserDivision.GetDivisionId(User),
+            cancellationToken);
+        return RedirectToAction(nameof(Registrations), new { activityId });
     }
 
     private async Task<IActionResult> ReturnFormWithErrorsAsync(
