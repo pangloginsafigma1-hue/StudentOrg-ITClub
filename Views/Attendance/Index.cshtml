@@ -28,7 +28,7 @@
                     @foreach (var activity in Model.Activities)
                     {
                         <option value="@activity.ActivityId" selected="@(Model.SelectedActivityId == activity.ActivityId ? "selected" : null)">
-                            @activity.ActivityName — @activity.ActivityDate.ToString("MMM dd, yyyy")
+                            @activity.ActivityName — @(activity.DivisionName ?? "All divisions") — @activity.ActivityDate.ToString("MMM dd, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM dd, yyyy h:mm tt") @(activity.AttendanceDone ? "(Recorded)" : "")
                         </option>
                     }
                 </select>
@@ -48,8 +48,10 @@
     {
         <p class="attendance-hint">
             @(Model.Activities.Count == 0
-                ? "Attendance is already recorded for every activity."
-                : "Only activities without recorded attendance are listed.")
+                ? "There are no activities available for attendance."
+                : Model.CanEditRecordedAttendance
+                    ? "Select an activity to record or edit its attendance."
+                    : "Only activities without recorded attendance are listed.")
         </p>
         @if (Model.Activities.Count == 0 && Model.DatabaseError is null)
         {
@@ -61,8 +63,16 @@
     }
     else if (Model.Members.Count == 0)
     {
-        <p class="attendance-hint">Only active members are included in the attendance roster.</p>
-        <div class="empty-state attendance-empty">No active members are available for this activity.</div>
+        <p class="attendance-hint">
+            @(Model.SelectedActivityAttendanceDone
+                ? "This recorded activity has no attendance rows to edit."
+                : "Only active members are included in the attendance roster.")
+        </p>
+        <div class="empty-state attendance-empty">
+            @(Model.SelectedActivityAttendanceDone
+                ? "There are no recorded attendance entries for this activity."
+                : "No active members are available for this activity.")
+        </div>
     }
     else
     {
@@ -71,7 +81,7 @@
             <div class="attendance-heading">
                 <div>
                     <h2>@Model.SelectedActivityName</h2>
-                    <p>Mark each active member as present. Unchecked members will be recorded as absent.</p>
+                    <p>Mark each member as present. Unchecked members will be recorded as absent.</p>
                 </div>
                 <div class="attendance-controls">
                     <div class="attendance-summary" aria-live="polite">
@@ -124,9 +134,13 @@
             </div>
 
             <div class="attendance-footer">
-                <span>After saving, attendance is locked and the activity leaves this list.</span>
+                <span>
+                    @(Model.SelectedActivityAttendanceDone
+                        ? "Changes update the existing attendance record."
+                        : "After saving, attendance is locked and the activity leaves this list.")
+                </span>
                 <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#saveAttendanceModal">
-                    Save Attendance
+                    @(Model.SelectedActivityAttendanceDone ? "Update Attendance" : "Save Attendance")
                 </button>
             </div>
 
@@ -139,12 +153,18 @@
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            <p>Save the attendance for <strong>@Model.SelectedActivityName</strong>?</p>
-                            <p class="delete-warning">Once saved, this activity will no longer appear in this list and its attendance cannot be taken again.</p>
+                            <p>@(Model.SelectedActivityAttendanceDone ? "Update" : "Save") the attendance for <strong>@Model.SelectedActivityName</strong>?</p>
+                            <p class="delete-warning">
+                                @(Model.SelectedActivityAttendanceDone
+                                    ? "This updates the existing attendance record."
+                                    : Model.CanEditRecordedAttendance
+                                        ? "After the first save, only a Super Admin can edit this record."
+                                        : "Once saved, this activity will no longer appear in this list.")
+                            </p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
-                            <button class="btn btn-primary" type="submit">Yes, Save Attendance</button>
+                            <button class="btn btn-primary" type="submit">Yes, @(Model.SelectedActivityAttendanceDone ? "Update" : "Save") Attendance</button>
                         </div>
                     </div>
                 </div>
@@ -155,7 +175,11 @@
     @if (Model.HasActivity)
     {
         <p class="attendance-hint attendance-bottom-hint">
-            Only activities without recorded attendance are listed.
+            @(Model.SelectedActivityAttendanceDone
+                ? "Recorded attendance can be edited only by a Super Admin."
+                : Model.CanEditRecordedAttendance
+                    ? "Super Admins can select recorded activities to correct attendance."
+                    : "Only activities without recorded attendance are listed.")
         </p>
     }
 </section>

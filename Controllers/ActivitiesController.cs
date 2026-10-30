@@ -6,7 +6,7 @@ using MySqlConnector;
 
 namespace ITClubOrg.Controllers;
 
-[Authorize]
+[Authorize(Roles = "SuperAdmin,DivisionAdmin")]
 public sealed class ActivitiesController(
     IActivityRepository activityRepository,
     IDivisionRepository divisionRepository,
@@ -70,6 +70,12 @@ public sealed class ActivitiesController(
         {
             ModelState.AddModelError(nameof(form.Status), "Choose a valid activity status.");
         }
+        if (form.ActivityDate is not DateTime startDate
+            || form.ActivityEndDate is not DateTime endDate
+            || endDate <= startDate)
+        {
+            ModelState.AddModelError(nameof(form.ActivityEndDate), "The end date and time must be after the start.");
+        }
 
         var isEdit = form.ActivityId > 0;
         if (form.ActivityId < 0)
@@ -95,11 +101,8 @@ public sealed class ActivitiesController(
             divisions = [];
         }
 
-        if (form.DivisionId is not int selectedDivisionId)
-        {
-            ModelState.AddModelError(nameof(form.DivisionId), "Choose a division.");
-        }
-        else if (!divisions.Any(division => division.DivisionId == selectedDivisionId))
+        if (form.DivisionId is int selectedDivisionId
+            && !divisions.Any(division => division.DivisionId == selectedDivisionId))
         {
             ModelState.AddModelError(nameof(form.DivisionId), "Choose a valid division.");
         }
@@ -114,9 +117,10 @@ public sealed class ActivitiesController(
             ActivityId = form.ActivityId,
             ActivityName = form.ActivityName.Trim(),
             Location = form.Location.Trim(),
-            ActivityDate = form.ActivityDate.Date,
+            ActivityDate = form.ActivityDate!.Value,
+            ActivityEndDate = form.ActivityEndDate!.Value,
             Status = form.Status,
-            Description = form.Description.Trim(),
+            Description = form.Description?.Trim() ?? string.Empty,
             DivisionId = form.DivisionId
         };
 

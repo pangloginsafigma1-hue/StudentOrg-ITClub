@@ -1,6 +1,6 @@
 @model ITClubOrg.Models.MemberListViewModel
 @{
-    ViewData["Title"] = "Members";
+    ViewData["Title"] = "Membership";
 }
 
 @if (TempData["SuccessMessage"] is string successMessage)
@@ -16,7 +16,7 @@
     <div class="alert alert-warning" role="alert">@Model.DatabaseError</div>
 }
 
-<section class="page-card members-card">
+<section class="page-card members-card" id="membersList">
     <div class="members-toolbar">
         <form asp-controller="Members" asp-action="Index" method="get" class="member-search">
             <label class="visually-hidden" for="memberSearch">Search members</label>
@@ -87,6 +87,60 @@
         <strong>Total members: @Model.Members.Count</strong>
         <span>Use the pencil to edit and the bin to delete a member.</span>
     </div>
+</section>
+
+<section class="page-card" id="pendingJoinRequests">
+    <div class="members-toolbar">
+        <div>
+            <h2>Pending Join Requests</h2>
+            <p>Verify the Student ID and submitted details before approval.</p>
+        </div>
+    </div>
+    @if (Model.PendingRegistrations.Count == 0)
+    {
+        <p class="empty-state">There are no pending join requests for your authorized scope.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table somams-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Student ID</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Course</th>
+                        <th scope="col">Year</th>
+                        <th scope="col">Division</th>
+                        <th scope="col">Submitted</th>
+                        <th scope="col" class="actions-heading">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var request in Model.PendingRegistrations)
+                    {
+                        <tr>
+                            <td>@request.MemberId</td>
+                            <td>@request.StudentName</td>
+                            <td>@request.Course</td>
+                            <td>@request.YearLevel</td>
+                            <td>@request.DivisionName</td>
+                            <td>@request.SubmittedAt.ToString("MMM d, yyyy")</td>
+                            <td class="actions-cell">
+                                <form asp-controller="Members" asp-action="ApproveRegistration" method="post" class="d-inline">
+                                    <input type="hidden" name="memberId" value="@request.MemberId" />
+                                    <button class="btn btn-primary btn-sm" type="submit">Approve</button>
+                                </form>
+                                <form asp-controller="Members" asp-action="RejectRegistration" method="post" class="d-inline">
+                                    <input type="hidden" name="memberId" value="@request.MemberId" />
+                                    <button class="btn btn-outline-danger btn-sm" type="submit">Reject</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
 </section>
 
 <div class="modal fade" id="deleteMemberModal" tabindex="-1" aria-labelledby="deleteMemberModalTitle" aria-hidden="true">

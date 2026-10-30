@@ -6,7 +6,7 @@ using MySqlConnector;
 
 namespace ITClubOrg.Controllers;
 
-[Authorize]
+[Authorize(Roles = "SuperAdmin,DivisionAdmin")]
 public sealed class AttendanceController(
     IActivityRepository activityRepository,
     IAttendanceRepository attendanceRepository,
@@ -56,17 +56,19 @@ public sealed class AttendanceController(
                 activityId,
                 presentMemberIds ?? [],
                 UserDivision.GetDivisionId(User),
+                UserDivision.IsSuperAdmin(User),
                 cancellationToken);
 
             if (!saved)
             {
                 TempData["ErrorMessage"] =
-                    "Attendance could not be saved. The activity may already be locked or the selected members are no longer active.";
-                return RedirectToAction(nameof(Index));
+                    "Attendance could not be saved. The activity may be unavailable, or the selected members may no longer be on its roster.";
+                return RedirectToAction(nameof(Index), new { activityId });
             }
 
-            TempData["SuccessMessage"] =
-                "Attendance saved. This activity is now locked and can be found in Reports > Activity Attendance Report.";
+            TempData["SuccessMessage"] = UserDivision.IsSuperAdmin(User)
+                ? "Attendance saved or updated."
+                : "Attendance saved. This activity is now locked and can be found in Reports > Activity Attendance Report.";
         }
         catch (InvalidOperationException exception)
         {
@@ -89,10 +91,18 @@ public sealed class AttendanceController(
         CancellationToken cancellationToken)
     {
         var divisionId = UserDivision.GetDivisionId(User);
-        var activities = await activityRepository.GetPendingAttendanceAsync(divisionId, cancellationToken);
+        var canEditRecordedAttendance = UserDivision.IsSuperAdmin(User);
+        var activities = await activityRepository.GetAttendanceActivitiesAsync(
+            divisionId,
+            canEditRecordedAttendance,
+            cancellationToken);
         if (!activityId.HasValue)
         {
-            return new AttendanceViewModel { Activities = activities };
+            return new AttendanceViewModel
+            {
+                Activities = activities,
+                CanEditRecordedAttendance = canEditRecordedAttendance
+            };
         }
 
         var selectedActivity = activities.FirstOrDefault(activity => activity.ActivityId == activityId.Value);
@@ -101,6 +111,7 @@ public sealed class AttendanceController(
             return new AttendanceViewModel
             {
                 Activities = activities,
+                CanEditRecordedAttendance = canEditRecordedAttendance,
                 DatabaseError = "This activity is not available for attendance. It may already have recorded attendance."
             };
         }
@@ -110,14 +121,20 @@ public sealed class AttendanceController(
             Activities = activities,
             SelectedActivityId = selectedActivity.ActivityId,
             SelectedActivityName = selectedActivity.ActivityName,
-            Members = await attendanceRepository.GetRosterAsync(selectedActivity.ActivityId, divisionId, cancellationToken)
+            SelectedActivityAttendanceDone = selectedActivity.AttendanceDone,
+            CanEditRecordedAttendance = canEditRecordedAttendance,
+            Members = selectedActivity.AttendanceDone
+                ? await attendanceRepository.GetRecordedRosterAsync(selectedActivity.ActivityId, cancellationToken)
+                : await attendanceRepository.GetRosterAsync(selectedActivity.ActivityId, divisionId, cancellationToken)
         };
     }
 
     private void SetPageMetadata()
     {
         ViewData["Title"] = "Attendance";
-        ViewData["Description"] = "Record member attendance during an activity.";
+        ViewData["Description"] = UserDivision.IsSuperAdmin(User)
+            ? "Record attendance for any division and correct recorded attendance."
+            : "Record member attendance during an activity.";
         ViewData["ActiveSection"] = "attendance";
     }
 }

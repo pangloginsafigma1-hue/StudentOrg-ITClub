@@ -7,7 +7,7 @@ using MySqlConnector;
 
 namespace ITClubOrg.Controllers;
 
-[Authorize]
+[Authorize(Roles = "SuperAdmin,DivisionAdmin")]
 public sealed class MembershipController(
     IMemberRepository memberRepository,
     IDivisionRepository divisionRepository,
@@ -86,6 +86,11 @@ public sealed class MembershipController(
         }
 
         var isEdit = !string.IsNullOrWhiteSpace(id);
+        if (!isEdit)
+        {
+            model.Status = "Active";
+            ModelState.Remove(nameof(model.Status));
+        }
         if (isEdit && !string.Equals(id, model.MemberId, StringComparison.Ordinal))
         {
             ModelState.AddModelError(nameof(model.MemberId), "The membership ID cannot be changed.");
@@ -94,9 +99,13 @@ public sealed class MembershipController(
         if (!MemberLookups.Courses.Contains(model.Course, StringComparer.Ordinal)
             || !MemberLookups.YearLevels.Contains(model.YearLevel, StringComparer.Ordinal)
             || !MemberLookups.Positions.Contains(model.Position, StringComparer.Ordinal)
-            || !MemberLookups.Statuses.Contains(model.Status, StringComparer.Ordinal))
+            || (isEdit && !MemberLookups.Statuses.Contains(model.Status, StringComparer.Ordinal)))
         {
-            ModelState.AddModelError(string.Empty, "Select a valid course, year level, position, and membership status.");
+            ModelState.AddModelError(string.Empty, "Select a valid course, year level, and position.");
+        }
+        if (!UserDivision.IsSuperAdmin(User) && !isEdit && model.Position == "Division Head")
+        {
+            ModelState.AddModelError(nameof(model.Position), "Only a Super Admin can assign the Division Head position.");
         }
 
         try
@@ -216,8 +225,10 @@ public sealed class MembershipController(
         new()
         {
             DivisionId = divisionId,
+            Status = "Active",
             Divisions = divisions,
             CanChooseDivision = UserDivision.IsSuperAdmin(User),
+            Positions = GetAvailablePositions(isEdit: false),
             StudentIdExample = GetStudentIdExample()
         };
 
@@ -238,6 +249,7 @@ public sealed class MembershipController(
             Divisions = divisions,
             CanChooseDivision = UserDivision.IsSuperAdmin(User),
             IsEdit = true,
+            Positions = GetAvailablePositions(isEdit: true),
             StudentIdExample = GetStudentIdExample()
         };
 
@@ -259,8 +271,14 @@ public sealed class MembershipController(
             Divisions = divisions,
             CanChooseDivision = UserDivision.IsSuperAdmin(User),
             IsEdit = isEdit,
+            Positions = GetAvailablePositions(isEdit),
             StudentIdExample = GetStudentIdExample()
         };
+
+    private IReadOnlyList<string> GetAvailablePositions(bool isEdit) =>
+        !UserDivision.IsSuperAdmin(User) && !isEdit
+            ? MemberLookups.Positions.Where(position => position != "Division Head").ToArray()
+            : MemberLookups.Positions;
 
     private void SetPageMetadata(bool isEdit)
     {

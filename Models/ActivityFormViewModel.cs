@@ -6,9 +6,7 @@ public sealed class ActivityFormViewModel
 {
     public int ActivityId { get; set; }
 
-    [Required]
-    [Range(1, int.MaxValue, ErrorMessage = "Choose a division.")]
-    [Display(Name = "Send activity to")]
+    [Display(Name = "Audience")]
     public int? DivisionId { get; set; }
 
     public IReadOnlyList<Division> Divisions { get; init; } = [];
@@ -24,9 +22,15 @@ public sealed class ActivityFormViewModel
     [StringLength(150)]
     public string Location { get; set; } = string.Empty;
 
-    [DataType(DataType.Date)]
-    [Display(Name = "Date")]
-    public DateTime ActivityDate { get; set; } = DateTime.Today;
+    [Required]
+    [DataType(DataType.DateTime)]
+    [Display(Name = "Starts")]
+    public DateTime? ActivityDate { get; set; } = DateTime.Today.AddHours(9);
+
+    [Required]
+    [DataType(DataType.DateTime)]
+    [Display(Name = "Ends")]
+    public DateTime? ActivityEndDate { get; set; } = DateTime.Today.AddHours(10);
 
     [Required]
     [StringLength(20)]

@@ -55,6 +55,7 @@ if (activityModal instanceof HTMLElement) {
         const name = activityModal.querySelector("#activityName");
         const location = activityModal.querySelector("#activityLocation");
         const date = activityModal.querySelector("#activityDate");
+        const endDate = activityModal.querySelector("#activityEndDate");
         const status = activityModal.querySelector("#activityStatus");
         const description = activityModal.querySelector("#activityDescription");
         const division = activityModal.querySelector("#activityDivision");
@@ -66,6 +67,7 @@ if (activityModal instanceof HTMLElement) {
             || !(name instanceof HTMLInputElement)
             || !(location instanceof HTMLInputElement)
             || !(date instanceof HTMLInputElement)
+            || !(endDate instanceof HTMLInputElement)
             || !(status instanceof HTMLSelectElement)
             || !(description instanceof HTMLTextAreaElement)
             || !(division instanceof HTMLInputElement || division instanceof HTMLSelectElement)
@@ -85,7 +87,8 @@ if (activityModal instanceof HTMLElement) {
         const today = new Date(currentDate.getTime() - currentDate.getTimezoneOffset() * 60_000)
             .toISOString()
             .slice(0, 10);
-        date.value = isEdit ? trigger.dataset.activityDate ?? today : today;
+        date.value = isEdit ? trigger.dataset.activityDate ?? `${today}T09:00` : `${today}T09:00`;
+        endDate.value = isEdit ? trigger.dataset.activityEndDate ?? `${today}T10:00` : `${today}T10:00`;
         status.value = isEdit ? trigger.dataset.activityStatus ?? "Upcoming" : "Upcoming";
         division.value = isEdit ? trigger.dataset.activityDivisionId ?? "" : "";
 

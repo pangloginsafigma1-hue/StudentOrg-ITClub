@@ -20,7 +20,17 @@ The migrated app uses the existing tables (`admins`, `members`, `activities`, an
 
 To enable division-scoped access, run [`Database/04_divisions.sql`](./Database/04_divisions.sql) against `ITClubOrgDB` before starting the updated app. If you ran an earlier version of this migration, run the current file again; it is idempotent and adds newer account columns such as `admins.is_active`. This additive migration targets **only** `ITClubOrgDB`; it does not read or modify `somams_db`. Existing member and activity records remain unassigned and visible only to super admins until assigned to a division in the app.
 
-Existing administrator accounts remain active super admins after migration. Super admins can create and manage administrator accounts from **Admin Accounts** in the application, including division assignment, password reset, and account disabling. At least one active super admin must remain enabled. Disabled accounts cannot sign in. To make an existing account a division admin, use the account-management UI or update that account's `role` and `division_id` in `ITClubOrgDB` (the division IDs are in the `divisions` table). A division admin must have `role = 'DivisionAdmin'` and a valid division ID; a super admin must have `role = 'SuperAdmin'` and `division_id = NULL`. Division member records currently retain a globally unique membership/student ID and belong to one division.
+To enable the member portal, also run [`Database/05_member_portal.sql`](./Database/05_member_portal.sql). Members use the separate **Member Portal** sign-in and registration pages. New registrations are pending until an administrator reviews them; approval creates the member record if it does not exist, or links the portal account to an existing matching record. If the Student ID already exists but the submitted name, course, year, or division differs, an administrator must reconcile the member record before approval. Division admins can review registrations and announcements only for their assigned division.
+
+After `05_member_portal.sql`, run [`Database/06_member_data_cleanup.sql`](./Database/06_member_data_cleanup.sql) to convert existing member and registration courses to BSIT, map legacy President positions to Division Head, and normalize other member positions to Member. New membership forms offer only Division Head and Member; division administrators can add Members but cannot assign the Division Head position.
+
+Run [`Database/07_activity_time_range.sql`](./Database/07_activity_time_range.sql) to add activity start/end timestamps. Existing activities are backfilled from their current `activity_date` with a one-hour interval beginning at midnight; update their times in Activities if the original event times are known. Super admins can create organization-wide or division-specific activities and edit recorded attendance across divisions. Once attendance is first saved, the activity status is set to **Completed**.
+
+The member portal exposes a member's own record and attendance, upcoming organization-wide and own-division activities, and published announcements. Administrators create posts from **Announcements**; super admins can target all members or an individual division. The admin **Profile** page manages the signed-in administrator's own account. Member request tables are retained for existing data, but the Member Inbox and member request/correction surfaces are no longer available.
+
+The president appoints division administrators according to the organization's bylaws and records the appointment, division, responsibilities, and review/term date. A SuperAdmin provisions the named account with least privilege; SuperAdmin is a technical custodian role, not automatically the president's title. Review and remove access during leadership handovers.
+
+Existing administrator accounts remain active super admins after migration. Super admins can create and manage administrator accounts from **User Roles**, including division assignment, password reset, and account disabling. The page also lists approved member portal accounts and allows Super Admins to enable/disable portal access or reset member passwords. At least one active super admin must remain enabled. Disabled accounts cannot sign in. To make an existing account a division admin, use the account-management UI or update that account's `role` and `division_id` in `ITClubOrgDB` (the division IDs are in the `divisions` table). A division admin must have `role = 'DivisionAdmin'` and a valid division ID; a super admin must have `role = 'SuperAdmin'` and `division_id = NULL`. Division member records currently retain a globally unique membership/student ID and belong to one division.
 
 For example, after replacing the username with an existing admin account, this assigns it to Software:
 
@@ -58,7 +68,7 @@ Requirements: .NET 10 SDK and MySQL Server 8.
    dotnet run
    ```
 
-Sign in with an administrator account already present in the `admins` table, or use the optional one-time bootstrap settings above. The MVC app does not create or assume the legacy default `admin / admin123` credentials.
+Sign in with an administrator account already present in the `admins` table, or use the optional one-time bootstrap settings above. Members use the **Member Portal** link on the administrator sign-in page. The MVC app does not create or assume the legacy default `admin / admin123` credentials.
 
 4. To enable forgot-password recovery, configure an SMTP sender in the local user-secrets store. For Gmail, use an app password rather than the account password:
 
@@ -80,4 +90,5 @@ Sign in with an administrator account already present in the `admins` table, or 
 - **Phase 3:** Activities CRUD and search, status and attendance indicators, plus the active-member attendance roster with search, live present/absent counts, confirmation, and transactional one-time saving.
 - **Phase 4:** Member, activity date-range, and activity attendance Word reports; administrator profile, username/email, profile photo, and optional password updates.
 - **Phase 5:** Forgot-password email verification and password reset with expiring codes.
+- **Phase 6:** Member self-registration with administrator approval, separate member sign-in, personal membership/activity/attendance views, and announcements.
 ITClubOrg-Demo-2026!

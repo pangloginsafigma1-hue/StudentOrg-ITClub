@@ -1,0 +1,27 @@
+@model MemberPortalViewModel
+<section class="page-card">
+    <h2>Upcoming Activities</h2>
+    @if (Model.UpcomingActivities.Count == 0)
+    {
+        <p class="empty-state">There are no upcoming activities at the moment.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table somams-table">
+                <thead><tr><th>Activity</th><th>Date</th><th>Location</th><th>Division</th></tr></thead>
+                <tbody>
+                    @foreach (var activity in Model.UpcomingActivities)
+                    {
+                        <tr>
+                            <td><strong>@activity.ActivityName</strong><small class="d-block text-muted">@activity.Description</small></td>
+                            <td>@activity.ActivityDate.ToString("MMM d, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM d, yyyy h:mm tt")</td>
+                            <td>@activity.Location</td>
+                            <td>@(activity.DivisionName ?? "Organization-wide")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

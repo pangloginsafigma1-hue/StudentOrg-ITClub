@@ -40,10 +40,43 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
         return members;
     }
 
+    public async Task<IReadOnlyList<AttendanceMember>> GetRecordedRosterAsync(
+        int activityId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            """
+            SELECT m.member_id, m.student_name, attendance.is_present
+            FROM attendance
+            JOIN members m ON m.member_id = attendance.member_id
+            WHERE attendance.activity_id = @activityId
+            ORDER BY m.student_name
+            """,
+            connection);
+        command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var members = new List<AttendanceMember>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            members.Add(new AttendanceMember
+            {
+                MemberId = reader.GetString("member_id"),
+                StudentName = reader.GetString("student_name"),
+                IsPresent = reader.GetBoolean("is_present")
+            });
+        }
+
+        return members;
+    }
+
     public async Task<bool> SaveAsync(
         int activityId,
         IReadOnlyCollection<string> presentMemberIds,
         int? divisionId,
+        bool allowEditRecorded,
         CancellationToken cancellationToken)
     {
         await using var connection = connectionFactory.CreateConnection();
@@ -52,26 +85,23 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
 
         try
         {
-            var isPending = await LockPendingActivityAsync(
+            var attendanceDone = await LockActivityAsync(
                 connection,
                 transaction,
                 activityId,
                 divisionId,
                 cancellationToken);
-            if (!isPending)
+            if (attendanceDone is null || attendanceDone.Value && !allowEditRecorded)
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
             }
 
-            var activeMemberIds = await GetActiveMemberIdsAsync(
-                connection,
-                transaction,
-                activityId,
-                divisionId,
-                cancellationToken);
-            var activeMemberSet = activeMemberIds.ToHashSet(StringComparer.Ordinal);
-            if (presentMemberIds.Any(memberId => !activeMemberSet.Contains(memberId)))
+            var rosterMemberIds = attendanceDone.Value
+                ? await GetRecordedMemberIdsAsync(connection, transaction, activityId, cancellationToken)
+                : await GetActiveMemberIdsAsync(connection, transaction, activityId, divisionId, cancellationToken);
+            var rosterMemberSet = rosterMemberIds.ToHashSet(StringComparer.Ordinal);
+            if (presentMemberIds.Any(memberId => !rosterMemberSet.Contains(memberId)))
             {
                 await transaction.RollbackAsync(cancellationToken);
                 return false;
@@ -81,9 +111,18 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
                 connection,
                 transaction,
                 activityId,
-                activeMemberIds,
+                rosterMemberIds,
                 presentMemberIds.ToHashSet(StringComparer.Ordinal),
                 cancellationToken);
+
+            if (!attendanceDone.Value && !await MarkActivityCompletedAsync(
+                    connection,
+                    transaction,
+                    activityId,
+                    cancellationToken))
+            {
+                throw new InvalidOperationException("Attendance could not be locked because the activity was updated concurrently.");
+            }
 
             await transaction.CommitAsync(cancellationToken);
             return true;
@@ -95,7 +134,7 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
         }
     }
 
-    private static async Task<bool> LockPendingActivityAsync(
+    private static async Task<bool?> LockActivityAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
         int activityId,
@@ -104,10 +143,9 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
     {
         await using var command = new MySqlCommand(
             """
-            SELECT activity_id
+            SELECT attendance_done
             FROM activities
             WHERE activity_id = @activityId
-              AND attendance_done = 0
               AND (@divisionId IS NULL OR division_id = @divisionId)
             FOR UPDATE
             """,
@@ -115,7 +153,40 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
             transaction);
         command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
         command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
-        return await command.ExecuteScalarAsync(cancellationToken) is not null;
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        if (result is null or DBNull)
+        {
+            return null;
+        }
+
+        return Convert.ToBoolean(result);
+    }
+
+    private static async Task<IReadOnlyList<string>> GetRecordedMemberIdsAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        int activityId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = new MySqlCommand(
+            """
+            SELECT member_id
+            FROM attendance
+            WHERE activity_id = @activityId
+            ORDER BY member_id
+            FOR UPDATE
+            """,
+            connection,
+            transaction);
+        command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var memberIds = new List<string>();
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            memberIds.Add(reader.GetString("member_id"));
+        }
+
+        return memberIds;
     }
 
     private static async Task<IReadOnlyList<string>> GetActiveMemberIdsAsync(
@@ -178,11 +249,19 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
             presentParameter.Value = presentMemberIds.Contains(memberId);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
+    }
 
+    private static async Task<bool> MarkActivityCompletedAsync(
+        MySqlConnection connection,
+        MySqlTransaction transaction,
+        int activityId,
+        CancellationToken cancellationToken)
+    {
         await using var lockCommand = new MySqlCommand(
             """
             UPDATE activities
-            SET attendance_done = 1
+            SET attendance_done = 1,
+                status = 'Completed'
             WHERE activity_id = @activityId
               AND attendance_done = 0
             """,
@@ -190,9 +269,6 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
             transaction);
         lockCommand.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
 
-        if (await lockCommand.ExecuteNonQueryAsync(cancellationToken) != 1)
-        {
-            throw new InvalidOperationException("Attendance could not be locked because the activity was updated concurrently.");
-        }
+        return await lockCommand.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 }

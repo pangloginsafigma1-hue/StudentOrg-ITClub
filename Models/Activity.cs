@@ -10,6 +10,8 @@ public sealed class Activity
 
     public DateTime ActivityDate { get; init; }
 
+    public DateTime ActivityEndDate { get; init; }
+
     public string Status { get; init; } = string.Empty;
 
     public string Description { get; init; } = string.Empty;

@@ -36,7 +36,9 @@
 }
 
 <div class="dashboard-top-grid dashboard-metrics-grid">
-    <section class="stat-card page-card dashboard-metric-card">
+    <a class="stat-card page-card dashboard-metric-card dashboard-quicklink"
+       href="@Url.Action("Index", "Members")#membersList"
+       aria-label="View all members">
         <span class="stat-accent" aria-hidden="true"></span>
         <div class="stat-icon"><img src="~/images/ic_members.png" alt="" /></div>
         <div class="stat-content">
@@ -44,9 +46,11 @@
             <strong class="stat-number">@(Model.MemberCount?.ToString("N0") ?? "—")</strong>
         </div>
         <span class="metric-note">@(Model.ActiveMemberCount?.ToString("N0") ?? "—") active</span>
-    </section>
+    </a>
 
-    <section class="stat-card page-card dashboard-metric-card">
+    <a class="stat-card page-card dashboard-metric-card dashboard-quicklink"
+       href="@Url.Action("Index", "Members")#pendingJoinRequests"
+       aria-label="Review new member join requests">
         <span class="stat-accent" aria-hidden="true"></span>
         <div class="stat-icon"><img src="~/images/ic_membership.png" alt="" /></div>
         <div class="stat-content">
@@ -54,9 +58,12 @@
             <strong class="stat-number">@(Model.NewMemberCount30Days?.ToString("N0") ?? "—")</strong>
         </div>
         <span class="metric-note">Recent registrations</span>
-    </section>
+    </a>
 
-    <section class="stat-card page-card dashboard-metric-card">
+    <a class="stat-card page-card dashboard-metric-card dashboard-quicklink"
+       asp-controller="Activities"
+       asp-action="Index"
+       aria-label="Manage activities">
         <span class="stat-accent" aria-hidden="true"></span>
         <div class="stat-icon"><img src="~/images/ic_activities.png" alt="" /></div>
         <div class="stat-content">
@@ -64,9 +71,12 @@
             <strong class="stat-number">@(Model.ActivityCount?.ToString("N0") ?? "—")</strong>
         </div>
         <span class="metric-note">@(Model.AttendanceRecordedCount?.ToString("N0") ?? "—") with attendance</span>
-    </section>
+    </a>
 
-    <section class="stat-card page-card dashboard-metric-card">
+    <a class="stat-card page-card dashboard-metric-card dashboard-quicklink"
+       asp-controller="Attendance"
+       asp-action="Index"
+       aria-label="Record attendance for an upcoming activity">
         <span class="stat-accent" aria-hidden="true"></span>
         <div class="stat-icon"><img src="~/images/ic_attendance.png" alt="" /></div>
         <div class="stat-content">
@@ -74,7 +84,7 @@
             <strong class="stat-number">@(Model.UpcomingActivityCount?.ToString("N0") ?? "—")</strong>
         </div>
         <span class="metric-note">Scheduled and pending</span>
-    </section>
+    </a>
 </div>
 
 <section class="page-card dashboard-chart-card">
@@ -147,7 +157,9 @@
                             <span>@activity.Location@(activity.DivisionName is null ? "" : $" · {activity.DivisionName}")</span>
                         </div>
                         <div class="dashboard-record-meta">
-                            <time datetime="@activity.ActivityDate.ToString("yyyy-MM-dd")">@activity.ActivityDate.ToString("MMM d, yyyy")</time>
+                            <time datetime="@activity.ActivityDate.ToString("s")">
+                                @activity.ActivityDate.ToString("MMM d, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM d, yyyy h:mm tt")
+                            </time>
                             <span class="activity-status status-@activity.Status.ToLowerInvariant()">@activity.Status</span>
                         </div>
                     </article>
@@ -215,7 +227,7 @@
                     @foreach (var activity in Model.UpcomingActivities)
                     {
                         <tr>
-                            <td>@activity.ActivityDate.ToString("MMM dd, yyyy")</td>
+                            <td>@activity.ActivityDate.ToString("MMM dd, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM dd, yyyy h:mm tt")</td>
                             <td>@activity.ActivityName</td>
                             <td>@activity.Location</td>
                             <td>@(activity.DivisionName ?? "Unassigned")</td>

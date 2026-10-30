@@ -9,7 +9,7 @@ using MySqlConnector;
 
 namespace ITClubOrg.Controllers;
 
-[Authorize]
+[Authorize(Roles = "SuperAdmin,DivisionAdmin")]
 public sealed class SettingsController(
     ISettingsRepository settingsRepository,
     ILogger<SettingsController> logger) : Controller
@@ -32,7 +32,7 @@ public sealed class SettingsController(
                 return NotFound();
             }
 
-            ViewData["Title"] = "Settings";
+            ViewData["Title"] = "Profile";
             ViewData["Description"] = "Manage your administrator profile and password.";
             ViewData["ActiveSection"] = "settings";
             return View(profile);
@@ -49,7 +49,7 @@ public sealed class SettingsController(
             SetPageMetadata();
             return View(new SettingsViewModel
             {
-                DatabaseError = "Settings could not be loaded from MySQL. Check the database connection and schema."
+                DatabaseError = "Profile could not be loaded from MySQL. Check the database connection and schema."
             });
         }
     }
@@ -162,7 +162,7 @@ public sealed class SettingsController(
 
     private void SetPageMetadata()
     {
-        ViewData["Title"] = "Settings";
+        ViewData["Title"] = "Profile";
         ViewData["Description"] = "Manage your administrator profile and password.";
         ViewData["ActiveSection"] = "settings";
     }

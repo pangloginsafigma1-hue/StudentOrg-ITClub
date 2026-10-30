@@ -1,3 +1,5 @@
 @{
-    Layout = User.Identity?.IsAuthenticated == true ? "_Layout" : "_AuthLayout";
+    Layout = User.IsInRole("Member")
+        ? "_MemberLayout"
+        : User.Identity?.IsAuthenticated == true ? "_Layout" : "_AuthLayout";
 }

@@ -1,0 +1,21 @@
+@model MemberPortalViewModel
+<section class="page-card">
+    <h2>Announcements</h2>
+    @if (Model.Announcements.Count == 0)
+    {
+        <p class="empty-state">No announcements have been published yet.</p>
+    }
+    else
+    {
+        @foreach (var announcement in Model.Announcements)
+        {
+            <article class="member-announcement">
+                <div class="members-toolbar">
+                    <h3>@announcement.Title</h3>
+                    <small>@announcement.CreatedAt.ToString("MMM d, yyyy") · @(announcement.DivisionName ?? "Organization-wide")</small>
+                </div>
+                <p>@announcement.Body</p>
+            </article>
+        }
+    }
+</section>

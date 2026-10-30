@@ -7,4 +7,6 @@ public sealed class ReportActivityOption
     public string ActivityName { get; init; } = string.Empty;
 
     public DateTime ActivityDate { get; init; }
+
+    public DateTime ActivityEndDate { get; init; }
 }

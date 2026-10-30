@@ -1,0 +1,51 @@
+@model MemberAccountViewModel
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+<section class="page-card">
+    <div class="members-toolbar">
+        <div>
+            <h2>My Account</h2>
+            <p>Your membership information is maintained by organization administrators.</p>
+        </div>
+    </div>
+    <dl class="member-record">
+        <dt>Student ID</dt><dd>@Model.Member.MemberId</dd>
+        <dt>Name</dt><dd>@Model.Member.StudentName</dd>
+        <dt>Course</dt><dd>@Model.Member.Course</dd>
+        <dt>Year level</dt><dd>@Model.Member.YearLevel</dd>
+        <dt>Division</dt><dd>@(Model.Member.DivisionName ?? "Not assigned")</dd>
+        <dt>Position</dt><dd>@Model.Member.Position</dd>
+        <dt>Membership status</dt><dd><span class="status-badge status-active">@Model.Member.Status</span></dd>
+        <dt>Date joined</dt><dd>@Model.Member.DateJoined.ToString("MMM d, yyyy")</dd>
+    </dl>
+</section>
+
+<section class="page-card">
+    <h2>Change Password</h2>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <form asp-controller="MemberPortal" asp-action="ChangePassword" method="post" class="settings-fields">
+        <div class="form-field">
+            <label asp-for="CurrentPassword"></label>
+            <input asp-for="CurrentPassword" class="form-control" autocomplete="current-password" />
+            <span asp-validation-for="CurrentPassword" class="field-error"></span>
+        </div>
+        <div class="form-field">
+            <label asp-for="NewPassword"></label>
+            <input asp-for="NewPassword" class="form-control" autocomplete="new-password" />
+            <span asp-validation-for="NewPassword" class="field-error"></span>
+        </div>
+        <div class="form-field">
+            <label asp-for="ConfirmPassword"></label>
+            <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+            <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+        </div>
+        <p class="settings-hint">Use 12 to 72 UTF-8 bytes for your new password.</p>
+        <button class="btn btn-primary" type="submit">Change Password</button>
+    </form>
+</section>

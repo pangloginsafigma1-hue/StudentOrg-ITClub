@@ -1,0 +1,36 @@
+@model IReadOnlyList<MemberAnnouncement>
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+@if (TempData["ErrorMessage"] is string errorMessage)
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+@if (ViewData["DatabaseError"] is string databaseError)
+{
+    <div class="alert alert-danger" role="alert">@databaseError</div>
+}
+<section class="page-card">
+    <div class="members-toolbar">
+        <div><h2>Published Announcements</h2><p>Members see organization-wide and division announcements in their portal.</p></div>
+        <a class="btn btn-primary" asp-action="Create">Create a post</a>
+    </div>
+    @if (Model.Count == 0)
+    {
+        <p class="empty-state">No announcements have been published yet.</p>
+    }
+    else
+    {
+        @foreach (var announcement in Model)
+        {
+            <article class="member-announcement">
+                <div class="members-toolbar">
+                    <h3>@announcement.Title</h3>
+                    <small>@announcement.CreatedAt.ToString("MMM d, yyyy") · @(announcement.DivisionName ?? "Organization-wide")</small>
+                </div>
+                <p>@announcement.Body</p>
+            </article>
+        }
+    }
+</section>

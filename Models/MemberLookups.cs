@@ -4,17 +4,11 @@ public static class MemberLookups
 {
     public static IReadOnlyList<string> Positions { get; } =
     [
-        "President",
-        "Vice President",
-        "Secretary",
-        "Treasurer",
-        "Auditor",
-        "Public Information Officer",
-        "Representative",
+        "Division Head",
         "Member"
     ];
 
-    public static IReadOnlyList<string> Courses { get; } = ["BSCS", "BSIT", "BSIS"];
+    public static IReadOnlyList<string> Courses { get; } = ["BSIT"];
 
     public static IReadOnlyList<string> YearLevels { get; } = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 

@@ -1,0 +1,26 @@
+@model MemberPortalViewModel
+<section class="page-card">
+    <h2>My Attendance</h2>
+    @if (Model.Attendance.Count == 0)
+    {
+        <p class="empty-state">No attendance records have been entered for you yet.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table somams-table">
+                <thead><tr><th>Activity</th><th>Date</th><th>Attendance</th></tr></thead>
+                <tbody>
+                    @foreach (var record in Model.Attendance)
+                    {
+                        <tr>
+                            <td>@record.ActivityName</td>
+                            <td>@record.ActivityDate.ToString("MMM d, yyyy h:mm tt") - @record.ActivityEndDate.ToString("MMM d, yyyy h:mm tt")</td>
+                            <td><span class="status-badge @(record.IsPresent ? "status-active" : "status-inactive")">@(record.IsPresent ? "Present" : "Absent")</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

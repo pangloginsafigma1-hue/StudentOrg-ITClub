@@ -1,0 +1,7 @@
+@{
+    ViewData["Title"] ??= "Member Portal";
+}
+<section class="page-card">
+    <div class="alert alert-danger" role="alert">@ViewData["DatabaseError"]</div>
+    <a class="btn btn-outline-primary" asp-controller="MemberPortal" asp-action="Index">Try again</a>
+</section>

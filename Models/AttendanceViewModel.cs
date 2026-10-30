@@ -8,6 +8,10 @@ public sealed class AttendanceViewModel
 
     public string SelectedActivityName { get; init; } = string.Empty;
 
+    public bool SelectedActivityAttendanceDone { get; init; }
+
+    public bool CanEditRecordedAttendance { get; init; }
+
     public IReadOnlyList<AttendanceMember> Members { get; init; } = [];
 
     public string? DatabaseError { get; init; }

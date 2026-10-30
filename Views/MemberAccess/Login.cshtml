@@ -1,0 +1,35 @@
+@model MemberLoginViewModel
+@{
+    ViewData["Title"] = "Member Sign In";
+}
+<main class="login-shell">
+    <section class="login-card" aria-labelledby="login-title">
+        <div class="login-brand">
+            <img src="~/images/logo.png" alt="" />
+            <span>SOMAMS</span>
+        </div>
+        <p class="login-eyebrow">Member Portal</p>
+        <h1 id="login-title">Welcome back</h1>
+        <p class="login-subtitle">Sign in to see your membership and activities.</p>
+        @if (TempData["SuccessMessage"] is string successMessage)
+        {
+            <div class="alert alert-success" role="status">@successMessage</div>
+        }
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger login-alert" role="alert"></div>
+        <form asp-action="Login" method="post" class="login-form">
+            <div class="form-field">
+                <label asp-for="MemberId"></label>
+                <input asp-for="MemberId" class="form-control" autocomplete="username" autofocus />
+                <span asp-validation-for="MemberId" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Password"></label>
+                <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
+            <button class="btn btn-primary login-submit" type="submit">Sign In</button>
+        </form>
+        <p class="login-footer">New to SOMAMS? <a asp-action="Register">Register for the organization</a></p>
+        <p class="login-footer"><a asp-controller="Auth" asp-action="Login">Administrator sign in</a></p>
+    </section>
+</main>

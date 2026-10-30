@@ -1,0 +1,56 @@
+@{
+    var activeSection = ViewData["ActiveSection"] as string ?? "home";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#000080" />
+    <title>@ViewData["Title"] - SOMAMS Member Portal</title>
+    <link rel="icon" type="image/png" href="~/images/logo.png" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="app-shell">
+    <a class="skip-link" href="#mainContent">Skip to content</a>
+    <aside class="sidebar">
+        <a class="brand" asp-controller="MemberPortal" asp-action="Index" aria-label="Member portal home">
+            <img src="~/images/logo.png" alt="" />
+            <span class="brand-copy">
+                <strong>SOMAMS</strong>
+                <small>Member Portal</small>
+            </span>
+        </a>
+        <nav class="sidebar-nav" aria-label="Member navigation">
+            <a class="sidebar-link @(activeSection == "home" ? "active" : "")" asp-controller="MemberPortal" asp-action="Index"><span>Home</span></a>
+            <a class="sidebar-link @(activeSection == "activities" ? "active" : "")" asp-controller="MemberPortal" asp-action="Activities"><span>Activities</span></a>
+            <a class="sidebar-link @(activeSection == "account" ? "active" : "")" asp-controller="MemberPortal" asp-action="Record"><span>Account</span></a>
+            <a class="sidebar-link @(activeSection == "my-attendance" ? "active" : "")" asp-controller="MemberPortal" asp-action="Attendance"><span>My Attendance</span></a>
+            <a class="sidebar-link @(activeSection == "updates" ? "active" : "")" asp-controller="MemberPortal" asp-action="Updates"><span>Updates</span></a>
+        </nav>
+        <form class="sidebar-logout" asp-controller="Auth" asp-action="Logout" method="post">
+            <button class="sidebar-link" type="submit"><span>Logout</span></button>
+        </form>
+    </aside>
+    <main class="main-content" id="mainContent">
+        <header class="page-header">
+            <div>
+                <h1>@ViewData["Title"]</h1>
+                <p>@ViewData["Description"]</p>
+                <span class="title-accent" aria-hidden="true"></span>
+            </div>
+            <div class="signed-in">
+                <span>Member account</span>
+                <strong>@User.Identity?.Name</strong>
+                <small>@User.FindFirst("division_name")?.Value</small>
+            </div>
+        </header>
+        <div class="page-body">
+            @RenderBody()
+        </div>
+    </main>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

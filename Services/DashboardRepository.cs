@@ -37,7 +37,7 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
             """
             SELECT COUNT(*) FROM activities
             WHERE status IN ('Upcoming', 'Pending')
-              AND activity_date >= CURDATE()
+              AND activity_start_at >= CURRENT_TIMESTAMP()
               AND (@divisionId IS NULL OR division_id = @divisionId)
             """,
             divisionId,
@@ -118,17 +118,17 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
         CancellationToken cancellationToken)
     {
         var dateFilter = upcoming
-            ? "AND activity_date >= CURDATE() AND status IN ('Upcoming', 'Pending')"
-            : "AND activity_date < CURDATE()";
+            ? "AND activity_start_at >= CURRENT_TIMESTAMP() AND status IN ('Upcoming', 'Pending')"
+            : "AND activity_start_at < CURRENT_TIMESTAMP()";
         var order = upcoming ? "ASC" : "DESC";
         await using var command = new MySqlCommand(
             $"""
-            SELECT a.activity_name, a.activity_date, a.location, a.status, d.name AS division_name
+            SELECT a.activity_name, a.activity_start_at, a.activity_end_at, a.location, a.status, d.name AS division_name
             FROM activities a
             LEFT JOIN divisions d ON d.division_id = a.division_id
             WHERE (@divisionId IS NULL OR a.division_id = @divisionId)
               {dateFilter}
-            ORDER BY a.activity_date {order}, a.activity_id DESC
+            ORDER BY a.activity_start_at {order}, a.activity_id DESC
             LIMIT 6
             """,
             connection);
@@ -141,7 +141,8 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
             activities.Add(new DashboardActivity
             {
                 ActivityName = reader.GetString("activity_name"),
-                ActivityDate = reader.GetDateTime("activity_date"),
+                ActivityDate = reader.GetDateTime("activity_start_at"),
+                ActivityEndDate = reader.GetDateTime("activity_end_at"),
                 Location = reader.GetString("location"),
                 Status = reader.GetString("status"),
                 DivisionName = reader.IsDBNull(reader.GetOrdinal("division_name"))
@@ -221,10 +222,10 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
 
         await using (var command = new MySqlCommand(
             """
-            SELECT CAST(DATE_FORMAT(activity_date, '%Y-%m-01') AS DATE) AS month_start, COUNT(*) AS total
+            SELECT CAST(DATE_FORMAT(activity_start_at, '%Y-%m-01') AS DATE) AS month_start, COUNT(*) AS total
             FROM activities
-            WHERE activity_date >= @trendStart
-              AND activity_date < @trendEnd
+            WHERE activity_start_at >= @trendStart
+              AND activity_start_at < @trendEnd
               AND (@divisionId IS NULL OR division_id = @divisionId)
             GROUP BY month_start
             """,

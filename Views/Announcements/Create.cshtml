@@ -1,0 +1,35 @@
+@model AnnouncementFormViewModel
+<section class="page-card">
+    <h2>Create a post</h2>
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+    <form asp-action="Create" method="post" class="member-request-form">
+        <div class="form-field">
+            <label asp-for="Title"></label>
+            <input asp-for="Title" class="form-control" />
+            <span asp-validation-for="Title" class="field-error"></span>
+        </div>
+        <div class="form-field">
+            <label asp-for="Body"></label>
+            <textarea asp-for="Body" class="form-control" rows="6"></textarea>
+            <span asp-validation-for="Body" class="field-error"></span>
+        </div>
+        @if (User.IsInRole("SuperAdmin"))
+        {
+            <div class="form-field">
+                <label asp-for="DivisionId">Audience</label>
+                <select asp-for="DivisionId" class="form-select">
+                    <option value="">All divisions (organization-wide)</option>
+                    @foreach (var division in Model.Divisions)
+                    {
+                        <option value="@division.DivisionId">@division.Name</option>
+                    }
+                </select>
+                <span asp-validation-for="DivisionId" class="field-error"></span>
+            </div>
+        }
+        <div class="member-actions">
+            <button class="btn btn-primary" type="submit">Post</button>
+            <a class="btn btn-outline-primary" asp-action="Index">Back</a>
+        </div>
+    </form>
+</section>

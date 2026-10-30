@@ -6,6 +6,8 @@ public sealed class DashboardActivity
 
     public DateTime ActivityDate { get; init; }
 
+    public DateTime ActivityEndDate { get; init; }
+
     public string Location { get; init; } = string.Empty;
 
     public string Status { get; init; } = string.Empty;

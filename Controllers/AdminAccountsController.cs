@@ -9,6 +9,7 @@ namespace ITClubOrg.Controllers;
 [Authorize(Roles = "SuperAdmin")]
 public sealed class AdminAccountsController(
     IAdminAccountRepository accountRepository,
+    IMemberPortalRepository memberPortalRepository,
     IDivisionRepository divisionRepository,
     ILogger<AdminAccountsController> logger) : Controller
 {
@@ -18,22 +19,104 @@ public sealed class AdminAccountsController(
         try
         {
             SetPageMetadata();
-            return View(await accountRepository.GetAllAsync(cancellationToken));
+            var administratorAccounts = await accountRepository.GetAllAsync(cancellationToken);
+            var memberAccounts = await memberPortalRepository.GetPortalAccountsAsync(cancellationToken);
+            return View(new UserRolesViewModel
+            {
+                AdministratorAccounts = administratorAccounts,
+                MemberAccounts = memberAccounts
+            });
         }
         catch (InvalidOperationException exception)
         {
             logger.LogError(exception, "Administrator accounts could not be loaded due to invalid database configuration.");
             SetPageMetadata();
             ViewData["DatabaseError"] = exception.Message;
-            return View(Array.Empty<AdminAccountListItem>());
+            return View(new UserRolesViewModel { DatabaseError = exception.Message });
         }
         catch (MySqlException exception)
         {
             logger.LogError(exception, "Administrator accounts could not be loaded from MySQL.");
             SetPageMetadata();
-            ViewData["DatabaseError"] = "Administrator accounts could not be loaded. Check the database connection and schema.";
-            return View(Array.Empty<AdminAccountListItem>());
+            return View(new UserRolesViewModel
+            {
+                DatabaseError = "User accounts could not be loaded. Check the database connection and schema."
+            });
         }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetMemberAccountStatus(
+        string memberId,
+        bool isActive,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(memberId) || memberId.Length > 20)
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            var updated = await memberPortalRepository.SetPortalAccountActiveAsync(
+                memberId,
+                isActive,
+                cancellationToken);
+            TempData[updated ? "SuccessMessage" : "ErrorMessage"] = updated
+                ? $"Member portal access for {memberId} was {(isActive ? "enabled" : "disabled")}."
+                : "This member portal account could not be updated.";
+        }
+        catch (InvalidOperationException exception)
+        {
+            logger.LogError(exception, "Member portal account {MemberId} could not be updated.", memberId);
+            TempData["ErrorMessage"] = exception.Message;
+        }
+        catch (MySqlException exception)
+        {
+            logger.LogError(exception, "Member portal account {MemberId} could not be updated in MySQL.", memberId);
+            TempData["ErrorMessage"] = "The member portal account could not be updated. Check the portal database schema.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetMemberPassword(
+        ResetMemberPasswordViewModel model,
+        CancellationToken cancellationToken)
+    {
+        if (model.NewPassword is null
+            || System.Text.Encoding.UTF8.GetByteCount(model.NewPassword) > 72
+            || !ModelState.IsValid)
+        {
+            TempData["ErrorMessage"] = "Enter a password of 12 to 72 UTF-8 bytes and confirm it correctly.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        try
+        {
+            var updated = await memberPortalRepository.ResetPortalPasswordAsync(
+                model.MemberId,
+                model.NewPassword,
+                cancellationToken);
+            TempData[updated ? "SuccessMessage" : "ErrorMessage"] = updated
+                ? $"The password for member {model.MemberId} was reset."
+                : "This member portal account could not be found.";
+        }
+        catch (InvalidOperationException exception)
+        {
+            logger.LogError(exception, "The password for member portal account {MemberId} could not be reset.", model.MemberId);
+            TempData["ErrorMessage"] = exception.Message;
+        }
+        catch (MySqlException exception)
+        {
+            logger.LogError(exception, "The password for member portal account {MemberId} could not be reset in MySQL.", model.MemberId);
+            TempData["ErrorMessage"] = "The member password could not be reset. Check the portal database schema.";
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
@@ -201,8 +284,8 @@ public sealed class AdminAccountsController(
 
     private void SetPageMetadata()
     {
-        ViewData["Title"] = "Account Management";
-        ViewData["Description"] = "Create and manage administrator access.";
-        ViewData["ActiveSection"] = "admin-accounts";
+        ViewData["Title"] = "User Roles";
+        ViewData["Description"] = "Review users, roles, and account access.";
+        ViewData["ActiveSection"] = "user-roles";
     }
 }

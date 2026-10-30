@@ -8,6 +8,12 @@ public sealed class ReportsViewModel
 
     public IReadOnlyList<ReportActivityOption> RecordedActivities { get; init; } = [];
 
+    public IReadOnlyList<Division> Divisions { get; init; } = [];
+
+    public int? DivisionId { get; init; }
+
+    public bool CanChooseDivision { get; init; }
+
     public IReadOnlyList<string> Positions { get; init; } = MemberLookups.Positions;
 
     public IReadOnlyList<string> Statuses { get; init; } = MemberLookups.Statuses;

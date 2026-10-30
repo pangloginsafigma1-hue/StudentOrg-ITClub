@@ -6,9 +6,10 @@ using MySqlConnector;
 
 namespace ITClubOrg.Controllers;
 
-[Authorize]
+[Authorize(Roles = "SuperAdmin,DivisionAdmin")]
 public sealed class MembersController(
     IMemberRepository memberRepository,
+    IMemberPortalRepository memberPortalRepository,
     ILogger<MembersController> logger) : Controller
 {
     private const int MaxSearchLength = 100;
@@ -30,6 +31,9 @@ public sealed class MembersController(
                 Search = normalizedSearch,
                 Members = await memberRepository.GetAllAsync(
                     normalizedSearch,
+                    UserDivision.GetDivisionId(User),
+                    cancellationToken),
+                PendingRegistrations = await memberPortalRepository.GetPendingRegistrationsAsync(
                     UserDivision.GetDivisionId(User),
                     cancellationToken)
             };
@@ -53,10 +57,78 @@ public sealed class MembersController(
             };
         }
 
-        ViewData["Title"] = "Members";
-        ViewData["Description"] = "Manage student members.";
-        ViewData["ActiveSection"] = "members";
+        ViewData["Title"] = "Membership";
+        ViewData["Description"] = "Manage student members and review join requests.";
+        ViewData["ActiveSection"] = "membership";
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ApproveRegistration(string memberId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(memberId) || memberId.Length > 20)
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            var approved = await memberPortalRepository.ApproveRegistrationAsync(
+                memberId,
+                UserDivision.GetDivisionId(User),
+                GetAdminId(),
+                cancellationToken);
+            TempData[approved ? "SuccessMessage" : "ErrorMessage"] = approved
+                ? $"Registration for {memberId} was approved."
+                : "This request is no longer pending or is outside your division.";
+        }
+        catch (InvalidOperationException exception)
+        {
+            logger.LogWarning(exception, "Registration for member {MemberId} could not be approved.", memberId);
+            TempData["ErrorMessage"] = exception.Message;
+        }
+        catch (MySqlException exception)
+        {
+            logger.LogError(exception, "Registration for member {MemberId} could not be approved in MySQL.", memberId);
+            TempData["ErrorMessage"] = "The registration could not be approved. Check the member portal schema and existing member record.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RejectRegistration(string memberId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(memberId) || memberId.Length > 20)
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            var rejected = await memberPortalRepository.RejectRegistrationAsync(
+                memberId,
+                UserDivision.GetDivisionId(User),
+                GetAdminId(),
+                cancellationToken);
+            TempData[rejected ? "SuccessMessage" : "ErrorMessage"] = rejected
+                ? $"Registration for {memberId} was rejected."
+                : "This request is no longer pending or is outside your division.";
+        }
+        catch (InvalidOperationException exception)
+        {
+            logger.LogWarning(exception, "Registration for member {MemberId} could not be rejected.", memberId);
+            TempData["ErrorMessage"] = exception.Message;
+        }
+        catch (MySqlException exception)
+        {
+            logger.LogError(exception, "Registration for member {MemberId} could not be rejected in MySQL.", memberId);
+            TempData["ErrorMessage"] = "The registration could not be rejected. Check the member portal schema.";
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
@@ -123,4 +195,9 @@ public sealed class MembersController(
 
         return RedirectToAction(nameof(Index), new { search });
     }
+
+    private int GetAdminId() =>
+        int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var adminId)
+            ? adminId
+            : throw new InvalidOperationException("The signed-in administrator account is invalid.");
 }

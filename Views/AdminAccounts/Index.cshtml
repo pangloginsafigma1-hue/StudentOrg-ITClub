@@ -1,6 +1,6 @@
-@model IReadOnlyList<ITClubOrg.Models.AdminAccountListItem>
+@model ITClubOrg.Models.UserRolesViewModel
 @{
-    ViewData["Title"] = "Account Management";
+    ViewData["Title"] = "User Roles";
 }
 
 @if (TempData["SuccessMessage"] is string successMessage)
@@ -11,7 +11,7 @@
 {
     <div class="alert alert-danger" role="alert">@errorMessage</div>
 }
-@if (ViewData["DatabaseError"] is string databaseError)
+@if (Model.DatabaseError is string databaseError)
 {
     <div class="alert alert-danger" role="alert">@databaseError</div>
 }
@@ -20,14 +20,14 @@
     <div class="members-toolbar">
         <div>
             <h2>Administrator Accounts</h2>
-            <p>Create division admins and manage their division access.</p>
+            <p>Create administrators and manage their division access.</p>
         </div>
         <div class="member-actions">
-            <a class="btn btn-primary" asp-controller="AdminAccounts" asp-action="Create">Add Account</a>
+            <a class="btn btn-primary" asp-controller="AdminAccounts" asp-action="Create">Add Administrator</a>
         </div>
     </div>
 
-    @if (Model.Count > 0)
+    @if (Model.AdministratorAccounts.Count > 0)
     {
         <div class="table-responsive">
             <table class="table somams-table">
@@ -43,7 +43,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var account in Model)
+                    @foreach (var account in Model.AdministratorAccounts)
                     {
                         <tr>
                             <td>@account.FullName</td>
@@ -68,12 +68,104 @@
             </table>
         </div>
         <div class="member-list-footer">
-            <strong>Total accounts: @Model.Count</strong>
+            <strong>Total administrator accounts: @Model.AdministratorAccounts.Count</strong>
             <span>At least one active super admin must remain enabled.</span>
         </div>
     }
-    else if (ViewData["DatabaseError"] is null)
+    else if (Model.DatabaseError is null)
     {
         <p class="empty-state">No administrator accounts were found.</p>
+    }
+</section>
+
+<section class="page-card">
+    <div class="members-toolbar">
+        <div>
+            <h2>Member Accounts</h2>
+            <p>Manage approved member portal access and passwords.</p>
+        </div>
+    </div>
+    @if (Model.MemberAccounts.Count == 0)
+    {
+        <p class="empty-state">No approved member portal accounts were found.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table somams-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Name</th>
+                        <th scope="col">Student ID</th>
+                        <th scope="col">Role</th>
+                        <th scope="col">Division</th>
+                        <th scope="col">Membership</th>
+                        <th scope="col">Portal Access</th>
+                        <th scope="col" class="actions-heading">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var account in Model.MemberAccounts)
+                    {
+                        <tr>
+                            <td>@account.FullName</td>
+                            <td>@account.MemberId</td>
+                            <td>Member</td>
+                            <td>@(account.DivisionName ?? "Unassigned")</td>
+                            <td>@account.MembershipStatus</td>
+                            <td>
+                                <span class="status-badge @(account.IsPortalAccountActive ? "status-active" : "status-inactive")">
+                                    @(account.IsPortalAccountActive ? "Enabled" : "Disabled")
+                                </span>
+                            </td>
+                            <td class="actions-cell">
+                                <form asp-controller="AdminAccounts"
+                                      asp-action="SetMemberAccountStatus"
+                                      method="post"
+                                      class="d-inline">
+                                    <input type="hidden" name="memberId" value="@account.MemberId" />
+                                    <input type="hidden" name="isActive" value="@(!account.IsPortalAccountActive)" />
+                                    <button class="btn btn-outline-primary btn-sm" type="submit">
+                                        @(account.IsPortalAccountActive ? "Disable" : "Enable")
+                                    </button>
+                                </form>
+                                <details class="member-password-reset">
+                                    <summary class="btn btn-outline-primary btn-sm">Reset password</summary>
+                                    <form asp-controller="AdminAccounts"
+                                          asp-action="ResetMemberPassword"
+                                          method="post"
+                                          class="member-password-reset-form">
+                                        <input type="hidden" name="MemberId" value="@account.MemberId" />
+                                        <label for="newPassword-@account.MemberId">New password</label>
+                                        <input id="newPassword-@account.MemberId"
+                                               name="NewPassword"
+                                               type="password"
+                                               class="form-control"
+                                               autocomplete="new-password"
+                                               minlength="12"
+                                               maxlength="72"
+                                               required />
+                                        <label for="confirmPassword-@account.MemberId">Confirm password</label>
+                                        <input id="confirmPassword-@account.MemberId"
+                                               name="ConfirmPassword"
+                                               type="password"
+                                               class="form-control"
+                                               autocomplete="new-password"
+                                               minlength="12"
+                                               maxlength="72"
+                                               required />
+                                        <button class="btn btn-primary btn-sm" type="submit">Save password</button>
+                                    </form>
+                                </details>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="member-list-footer">
+            <strong>Total member accounts: @Model.MemberAccounts.Count</strong>
+            <span>Member accounts require an Active membership record to sign in.</span>
+        </div>
     }
 </section>

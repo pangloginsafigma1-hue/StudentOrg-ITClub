@@ -1,0 +1,162 @@
+using ITClubOrg.Models;
+using ITClubOrg.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using MySqlConnector;
+
+namespace ITClubOrg.Controllers;
+
+[Authorize(Roles = "SuperAdmin,DivisionAdmin")]
+public sealed class AnnouncementsController(
+    IMemberPortalRepository memberRepository,
+    IDivisionRepository divisionRepository,
+    ILogger<AnnouncementsController> logger) : Controller
+{
+    [HttpGet]
+    public async Task<IActionResult> Index(CancellationToken cancellationToken)
+    {
+        SetPageMetadata();
+        try
+        {
+            return View(await memberRepository.GetAnnouncementsAsync(
+                UserDivision.GetDivisionId(User),
+                User.IsInRole("SuperAdmin"),
+                cancellationToken));
+        }
+        catch (InvalidOperationException exception)
+        {
+            logger.LogError(exception, "Announcements could not be loaded.");
+            ViewData["DatabaseError"] = exception.Message;
+            return View(Array.Empty<MemberAnnouncement>());
+        }
+        catch (MySqlException exception)
+        {
+            logger.LogError(exception, "Announcements could not be loaded from MySQL.");
+            ViewData["DatabaseError"] = "Announcements could not be loaded. Apply the member portal database migration.";
+            return View(Array.Empty<MemberAnnouncement>());
+        }
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Create(CancellationToken cancellationToken)
+    {
+        try
+        {
+            SetPageMetadata();
+            ViewData["Title"] = "Create a post";
+            return View(new AnnouncementFormViewModel
+            {
+                Divisions = User.IsInRole("SuperAdmin")
+                    ? await divisionRepository.GetAllAsync(cancellationToken)
+                    : []
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            logger.LogError(exception, "Announcement form could not load divisions.");
+            TempData["ErrorMessage"] = exception.Message;
+            return RedirectToAction(nameof(Index));
+        }
+        catch (MySqlException exception)
+        {
+            logger.LogError(exception, "Announcement form could not load divisions from MySQL.");
+            TempData["ErrorMessage"] = "The announcement form could not be loaded. Check the database connection.";
+            return RedirectToAction(nameof(Index));
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(AnnouncementFormViewModel model, CancellationToken cancellationToken)
+    {
+        var divisionScope = UserDivision.GetDivisionId(User);
+        if (divisionScope is int assignedDivisionId)
+        {
+            model.DivisionId = assignedDivisionId;
+            ModelState.Remove(nameof(model.DivisionId));
+        }
+
+        IReadOnlyList<Division> divisions;
+        try
+        {
+            divisions = User.IsInRole("SuperAdmin")
+                ? await divisionRepository.GetAllAsync(cancellationToken)
+                : [];
+            if (model.DivisionId is int requestedId
+                && !divisions.Any(division => division.DivisionId == requestedId))
+            {
+                ModelState.AddModelError(nameof(model.DivisionId), "Choose a valid division.");
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            logger.LogError(exception, "Announcement division validation failed.");
+            ModelState.AddModelError(string.Empty, exception.Message);
+            divisions = [];
+        }
+        catch (MySqlException exception)
+        {
+            logger.LogError(exception, "Announcement divisions could not be loaded.");
+            ModelState.AddModelError(string.Empty, "Division options could not be loaded.");
+            divisions = [];
+        }
+
+        model = new AnnouncementFormViewModel
+        {
+            Title = model.Title?.Trim() ?? string.Empty,
+            Body = model.Body?.Trim() ?? string.Empty,
+            DivisionId = model.DivisionId,
+            Divisions = divisions
+        };
+        if (!ModelState.IsValid)
+        {
+            SetPageMetadata();
+            ViewData["Title"] = "Create a post";
+            return View(model);
+        }
+
+        try
+        {
+            if (!int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out var adminId))
+            {
+                throw new InvalidOperationException("The signed-in administrator account is invalid.");
+            }
+            await memberRepository.CreateAnnouncementAsync(
+                model.Title,
+                model.Body,
+                model.DivisionId,
+                adminId,
+                cancellationToken);
+            TempData["SuccessMessage"] = "Your post was published.";
+            return RedirectToAction(nameof(Index));
+        }
+        catch (InvalidOperationException exception)
+        {
+            logger.LogError(exception, "Announcement could not be published.");
+            ModelState.AddModelError(string.Empty, exception.Message);
+        }
+        catch (MySqlException exception)
+        {
+            logger.LogError(exception, "Announcement could not be published to MySQL.");
+            ModelState.AddModelError(string.Empty, "The post could not be published. Check the member portal database migration.");
+        }
+
+        model = new AnnouncementFormViewModel
+        {
+            Title = model.Title,
+            Body = model.Body,
+            DivisionId = model.DivisionId,
+            Divisions = divisions
+        };
+        SetPageMetadata();
+        ViewData["Title"] = "Create a post";
+        return View(model);
+    }
+
+    private void SetPageMetadata()
+    {
+        ViewData["Title"] = "Announcements";
+        ViewData["Description"] = "Create an announcement for your division or all members.";
+        ViewData["ActiveSection"] = "announcements";
+    }
+}

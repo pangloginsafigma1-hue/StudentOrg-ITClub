@@ -53,7 +53,7 @@
                             <td>@activity.ActivityId</td>
                             <td>@activity.ActivityName</td>
                             <td>@(activity.DivisionName ?? "Unassigned (super admin only)")</td>
-                            <td>@activity.ActivityDate.ToString("MMM dd, yyyy")</td>
+                            <td>@activity.ActivityDate.ToString("MMM dd, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM dd, yyyy h:mm tt")</td>
                             <td>@activity.Location</td>
                             <td><span class="activity-status status-@activity.Status.ToLowerInvariant()">@activity.Status</span></td>
                             <td>
@@ -69,7 +69,8 @@
                                         data-activity-id="@activity.ActivityId"
                                         data-activity-name="@activity.ActivityName"
                                         data-activity-location="@activity.Location"
-                                        data-activity-date="@activity.ActivityDate.ToString("yyyy-MM-dd")"
+                                        data-activity-date="@activity.ActivityDate.ToString("yyyy-MM-dd'T'HH:mm")"
+                                        data-activity-end-date="@activity.ActivityEndDate.ToString("yyyy-MM-dd'T'HH:mm")"
                                         data-activity-status="@activity.Status"
                                         data-activity-description="@activity.Description"
                                         data-activity-division-id="@activity.DivisionId"
@@ -126,7 +127,7 @@
                             {
                                 <label asp-for="Form.DivisionId"></label>
                                 <select asp-for="Form.DivisionId" class="form-select" id="activityDivision">
-                                    <option value="">Choose a division</option>
+                                    <option value="">All divisions (organization-wide)</option>
                                     @foreach (var division in Model.Divisions)
                                     {
                                         <option value="@division.DivisionId">@division.Name</option>
@@ -153,8 +154,13 @@
                         </div>
                         <div class="form-field">
                             <label asp-for="Form.ActivityDate"></label>
-                            <input asp-for="Form.ActivityDate" class="form-control" type="date" id="activityDate" />
+                            <input asp-for="Form.ActivityDate" class="form-control" type="datetime-local" id="activityDate" />
                             <span asp-validation-for="Form.ActivityDate" class="field-error"></span>
+                        </div>
+                        <div class="form-field">
+                            <label asp-for="Form.ActivityEndDate"></label>
+                            <input asp-for="Form.ActivityEndDate" class="form-control" type="datetime-local" id="activityEndDate" />
+                            <span asp-validation-for="Form.ActivityEndDate" class="field-error"></span>
                         </div>
                         <div class="form-field">
                             <label asp-for="Form.Status"></label>

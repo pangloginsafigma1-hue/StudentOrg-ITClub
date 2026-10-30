@@ -1,0 +1,66 @@
+@model MemberPortalViewModel
+@if (TempData["SuccessMessage"] is string successMessage)
+{
+    <div class="alert alert-success" role="status">@successMessage</div>
+}
+<section class="page-card">
+    <div class="members-toolbar">
+        <div>
+            <h2>Welcome, @Model.Member.StudentName</h2>
+            <p>@Model.Member.DivisionName · @Model.Member.Course · @Model.Member.YearLevel</p>
+        </div>
+        <a class="btn btn-outline-primary" asp-action="Record">View my record</a>
+    </div>
+</section>
+<section class="page-card">
+    <div class="members-toolbar">
+        <div><h2>Upcoming Activities</h2><p>Activities open to your division and the organization.</p></div>
+        <a class="btn btn-outline-primary" asp-action="Activities">All activities</a>
+    </div>
+    @if (Model.UpcomingActivities.Count == 0)
+    {
+        <p class="empty-state">There are no upcoming activities at the moment.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table somams-table">
+                <thead><tr><th>Activity</th><th>Date</th><th>Location</th><th>Division</th></tr></thead>
+                <tbody>
+                    @foreach (var activity in Model.UpcomingActivities.Take(5))
+                    {
+                        <tr>
+                            <td><strong>@activity.ActivityName</strong><small class="d-block text-muted">@activity.Description</small></td>
+                            <td>@activity.ActivityDate.ToString("MMM d, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM d, yyyy h:mm tt")</td>
+                            <td>@activity.Location</td>
+                            <td>@(activity.DivisionName ?? "Organization-wide")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+<section class="page-card">
+    <div class="members-toolbar">
+        <div><h2>Latest Updates</h2><p>Announcements from the organization and your division.</p></div>
+        <a class="btn btn-outline-primary" asp-action="Updates">View updates</a>
+    </div>
+    @if (Model.Announcements.Count == 0)
+    {
+        <p class="empty-state">No announcements have been published yet.</p>
+    }
+    else
+    {
+        @foreach (var announcement in Model.Announcements.Take(3))
+        {
+            <article class="member-announcement">
+                <div class="members-toolbar">
+                    <h3>@announcement.Title</h3>
+                    <small>@announcement.CreatedAt.ToString("MMM d, yyyy")</small>
+                </div>
+                <p>@announcement.Body</p>
+            </article>
+        }
+    }
+</section>

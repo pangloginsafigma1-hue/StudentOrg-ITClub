@@ -6,7 +6,7 @@ using MySqlConnector;
 
 namespace ITClubOrg.Controllers;
 
-[Authorize]
+[Authorize(Roles = "SuperAdmin,DivisionAdmin")]
 public sealed class DashboardController(
     IDashboardRepository dashboardRepository,
     ILogger<DashboardController> logger) : Controller

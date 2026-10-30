@@ -16,6 +16,34 @@
     <div class="alert alert-warning" role="alert">@Model.DatabaseError</div>
 }
 
+<form asp-controller="Reports" asp-action="Index" method="get" class="page-card reports-division-filter">
+    <div class="form-field">
+        <label for="reportDivision">Report division</label>
+        @if (Model.CanChooseDivision)
+        {
+            <select id="reportDivision" name="divisionId" class="form-select">
+                <option value="" selected="@(Model.DivisionId is null ? "selected" : null)">All divisions</option>
+                @foreach (var division in Model.Divisions)
+                {
+                    <option value="@division.DivisionId"
+                            selected="@(division.DivisionId == Model.DivisionId ? "selected" : null)">
+                        @division.Name
+                    </option>
+                }
+            </select>
+        }
+        else
+        {
+            <input type="hidden" name="divisionId" value="@Model.DivisionId" />
+            <span>@User.FindFirst("division_name")?.Value</span>
+        }
+    </div>
+    @if (Model.CanChooseDivision)
+    {
+        <button class="btn btn-primary" type="submit">Apply division</button>
+    }
+</form>
+
 <section class="report-grid" aria-label="Available reports">
     <button class="report-card page-card" type="button" data-bs-toggle="modal" data-bs-target="#membersReportModal">
         <img src="~/images/ic_members.png" alt="" />
@@ -59,6 +87,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form method="post">
+                <input type="hidden" name="divisionId" value="@Model.DivisionId" />
                 <div class="modal-body">
                     <p>Export the full organization list or narrow the report using the filters below.</p>
                     <div class="form-field">
@@ -110,6 +139,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form asp-controller="Reports" asp-action="ExportActivities" method="post">
+                <input type="hidden" name="divisionId" value="@Model.DivisionId" />
                 <div class="modal-body">
                     <p>Select the activity dates to include in the Word report.</p>
                     <div class="form-field">
@@ -138,6 +168,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form asp-controller="Reports" asp-action="ExportAttendance" method="post">
+                <input type="hidden" name="divisionId" value="@Model.DivisionId" />
                 <div class="modal-body">
                     @if (Model.RecordedActivities.Count == 0)
                     {
@@ -151,7 +182,7 @@
                                 <option value="">Choose an activity</option>
                                 @foreach (var activity in Model.RecordedActivities)
                                 {
-                                    <option value="@activity.ActivityId">@activity.ActivityName (@activity.ActivityDate.ToString("MMM d, yyyy"))</option>
+                                    <option value="@activity.ActivityId">@activity.ActivityName (@activity.ActivityDate.ToString("MMM d, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM d, yyyy h:mm tt"))</option>
                                 }
                             </select>
                         </div>

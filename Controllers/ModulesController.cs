@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ITClubOrg.Controllers;
 
-[Authorize]
+[Authorize(Roles = "SuperAdmin,DivisionAdmin")]
 public sealed class ModulesController : Controller
 {
     [HttpGet]
@@ -13,7 +13,7 @@ public sealed class ModulesController : Controller
     {
         var item = NavigationCatalog.Find(section);
         if (item is null
-            || item.Key is "dashboard" or "members" or "membership" or "activities" or "attendance" or "reports" or "settings")
+            || item.Key is "dashboard" or "membership" or "activities" or "attendance" or "reports" or "settings" or "user-roles")
         {
             return NotFound();
         }

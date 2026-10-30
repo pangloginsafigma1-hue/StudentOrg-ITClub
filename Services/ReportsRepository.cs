@@ -38,11 +38,11 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
         await connection.OpenAsync(cancellationToken);
         await using var command = new MySqlCommand(
             """
-            SELECT activity_id, activity_name, activity_date
+            SELECT activity_id, activity_name, activity_start_at, activity_end_at
             FROM activities
             WHERE attendance_done = 1
               AND (@divisionId IS NULL OR division_id = @divisionId)
-            ORDER BY activity_date DESC, activity_name
+            ORDER BY activity_start_at DESC, activity_name
             """,
             connection);
         command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
@@ -55,7 +55,8 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
             {
                 ActivityId = reader.GetInt32("activity_id"),
                 ActivityName = reader.GetString("activity_name"),
-                ActivityDate = reader.GetDateTime("activity_date")
+                ActivityDate = reader.GetDateTime("activity_start_at"),
+                ActivityEndDate = reader.GetDateTime("activity_end_at")
             });
         }
 
@@ -119,17 +120,18 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
         await connection.OpenAsync(cancellationToken);
         await using var command = new MySqlCommand(
             """
-            SELECT activity_name, activity_date, location, status,
+            SELECT activity_name, activity_start_at, activity_end_at, location, status,
                    CASE WHEN attendance_done = 1 THEN 'Recorded' ELSE 'Not yet' END AS attendance,
                    COALESCE(description, '') AS description
             FROM activities
-            WHERE activity_date BETWEEN @fromDate AND @toDate
+            WHERE activity_start_at >= @fromDate
+              AND activity_start_at < @toDateExclusive
               AND (@divisionId IS NULL OR division_id = @divisionId)
-            ORDER BY activity_date, activity_name
+            ORDER BY activity_start_at, activity_name
             """,
             connection);
-        command.Parameters.Add("@fromDate", MySqlDbType.Date).Value = fromDate.Date;
-        command.Parameters.Add("@toDate", MySqlDbType.Date).Value = toDate.Date;
+        command.Parameters.Add("@fromDate", MySqlDbType.DateTime).Value = fromDate.Date;
+        command.Parameters.Add("@toDateExclusive", MySqlDbType.DateTime).Value = toDate.Date.AddDays(1);
         command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
@@ -138,7 +140,7 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
         {
             rows.Add([
                 reader.GetString("activity_name"),
-                reader.GetDateTime("activity_date").ToString("MMM d, yyyy"),
+                $"{reader.GetDateTime("activity_start_at"):MMM d, yyyy h:mm tt} - {reader.GetDateTime("activity_end_at"):MMM d, yyyy h:mm tt}",
                 reader.GetString("location"),
                 reader.GetString("status"),
                 reader.GetString("attendance"),
@@ -148,7 +150,7 @@ public sealed class ReportsRepository(MySqlConnectionFactory connectionFactory) 
 
         return new ReportTable
         {
-            Headers = ["Activity", "Date", "Location", "Status", "Attendance", "Description"],
+            Headers = ["Activity", "Start - End", "Location", "Status", "Attendance", "Description"],
             Rows = rows
         };
     }

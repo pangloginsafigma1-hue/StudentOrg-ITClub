@@ -41,8 +41,13 @@
                 else
                 {
                     <label asp-for="DivisionId">Division</label>
+                    <select class="form-select" disabled aria-disabled="true">
+                        @foreach (var division in Model.Divisions.Where(division => division.DivisionId == Model.DivisionId))
+                        {
+                            <option selected>@division.Name</option>
+                        }
+                    </select>
                     <input asp-for="DivisionId" type="hidden" />
-                    <span>@User.FindFirst("division_name")?.Value</span>
                 }
             </div>
 
@@ -90,14 +95,23 @@
 
             <div class="form-field">
                 <label asp-for="Status"></label>
-                <select asp-for="Status" class="form-select">
-                    <option value="">Select status</option>
-                    @foreach (var status in Model.Statuses)
-                    {
-                        <option value="@status">@status</option>
-                    }
-                </select>
-                <span asp-validation-for="Status" class="field-error"></span>
+                @if (Model.IsEdit)
+                {
+                    <select asp-for="Status" class="form-select">
+                        @foreach (var status in Model.Statuses)
+                        {
+                            <option value="@status">@status</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Status" class="field-error"></span>
+                }
+                else
+                {
+                    <select class="form-select" disabled aria-disabled="true">
+                        <option selected>Active</option>
+                    </select>
+                    <input asp-for="Status" type="hidden" value="Active" />
+                }
             </div>
 
             <div class="form-field">

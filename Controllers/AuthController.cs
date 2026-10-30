@@ -19,7 +19,9 @@ public sealed class AuthController(
     {
         if (User.Identity?.IsAuthenticated == true)
         {
-            return RedirectToAction("Index", "Dashboard");
+            return User.IsInRole("Member")
+                ? RedirectToAction("Index", "MemberPortal")
+                : RedirectToAction("Index", "Dashboard");
         }
 
         try
@@ -112,8 +114,17 @@ public sealed class AuthController(
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
+        var isMember = User.IsInRole("Member");
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        return RedirectToAction(nameof(Login));
+        return isMember
+            ? RedirectToAction("Login", "MemberAccess")
+            : RedirectToAction(nameof(Login));
+    }
+
+    [HttpGet]
+    public IActionResult AccessDenied()
+    {
+        return View();
     }
 
     [HttpGet]

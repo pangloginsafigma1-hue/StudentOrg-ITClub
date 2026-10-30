@@ -9,9 +9,14 @@ public interface IAttendanceRepository
         int? divisionId,
         CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<AttendanceMember>> GetRecordedRosterAsync(
+        int activityId,
+        CancellationToken cancellationToken);
+
     Task<bool> SaveAsync(
         int activityId,
         IReadOnlyCollection<string> presentMemberIds,
         int? divisionId,
+        bool allowEditRecorded,
         CancellationToken cancellationToken);
 }
