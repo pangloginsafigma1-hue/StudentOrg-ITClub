@@ -4,7 +4,7 @@ This is the phased C# / ASP.NET Core MVC migration of the SOMAMS WinForms applic
 
 ## Phase 1
 
-- Shared navy sidebar, gold active navigation, responsive layout, Segoe UI typography, cards, table styling, and SOMAMS artwork.
+- Shared responsive application shell, accessible navigation, consistent cards and tables, and SOMAMS artwork.
 - Cookie-based administrator sign-in using the existing BCrypt hashes, validation messages, password visibility toggle, and remember-me cookie.
 - Data-backed dashboard with member/activity totals, 12-month member and activity trends, recent member/activity lists, and upcoming activities.
 - Logout confirmation modal and working navigation links for all seven original sections.
@@ -20,13 +20,17 @@ The migrated app uses the existing tables (`admins`, `members`, `activities`, an
 
 To enable division-scoped access, run [`Database/04_divisions.sql`](./Database/04_divisions.sql) against `ITClubOrgDB` before starting the updated app. If you ran an earlier version of this migration, run the current file again; it is idempotent and adds newer account columns such as `admins.is_active`. This additive migration targets **only** `ITClubOrgDB`; it does not read or modify `somams_db`. Existing member and activity records remain unassigned and visible only to super admins until assigned to a division in the app.
 
-To enable the member portal, also run [`Database/05_member_portal.sql`](./Database/05_member_portal.sql). Members use the separate **Member Portal** sign-in and registration pages. New registrations are pending until an administrator reviews them; approval creates the member record if it does not exist, or links the portal account to an existing matching record. If the Student ID already exists but the submitted name, course, year, or division differs, an administrator must reconcile the member record before approval. Division admins can review registrations and announcements only for their assigned division.
+To enable the member portal, also run [`Database/05_member_portal.sql`](./Database/05_member_portal.sql), followed by [`Database/08_registration_email.sql`](./Database/08_registration_email.sql) when upgrading an existing database. New registrations require an email address. After approval, SOMAMS sends an email notification to the applicant using the configured SMTP settings; if delivery fails, the approval remains in effect and the administrator is told to contact the member. Older pending registrations without an email can still be approved, but must be notified manually. Approval creates the member record if it does not exist, or links the portal account to an existing matching record. If the Student ID already exists but the submitted name, course, year, or division differs, an administrator must reconcile the member record before approval. Division admins can review registrations and announcements only for their assigned division.
+
+Configure `Email:SmtpHost`, `Email:SmtpPort`, `Email:SmtpUsername`, `Email:SmtpPassword`, `Email:FromAddress`, and `Email:EnableSsl` through user secrets or deployment environment variables to send approval notifications and password-reset codes. Do not commit SMTP credentials.
 
 After `05_member_portal.sql`, run [`Database/06_member_data_cleanup.sql`](./Database/06_member_data_cleanup.sql) to convert existing member and registration courses to BSIT, map legacy President positions to Division Head, and normalize other member positions to Member. New membership forms offer only Division Head and Member; division administrators can add Members but cannot assign the Division Head position.
 
 Run [`Database/07_activity_time_range.sql`](./Database/07_activity_time_range.sql) to add activity start/end timestamps. Existing activities are backfilled from their current `activity_date` with a one-hour interval beginning at midnight; update their times in Activities if the original event times are known. Super admins can create organization-wide or division-specific activities and edit recorded attendance across divisions. Once attendance is first saved, the activity status is set to **Completed**.
 
 The member portal exposes a member's own record and attendance, upcoming organization-wide and own-division activities, and published announcements. Administrators create posts from **Announcements**; super admins can target all members or an individual division. The admin **Profile** page manages the signed-in administrator's own account. Member request tables are retained for existing data, but the Member Inbox and member request/correction surfaces are no longer available.
+
+The shared interface uses an indigo, ivory, and gold visual system with a simplified SVG SOMAMS mark. Authentication pages use a custom responsive layout without a background image. The original badge artwork remains available as a separate source asset.
 
 The president appoints division administrators according to the organization's bylaws and records the appointment, division, responsibilities, and review/term date. A SuperAdmin provisions the named account with least privilege; SuperAdmin is a technical custodian role, not automatically the president's title. Review and remove access during leadership handovers.
 

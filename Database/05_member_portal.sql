@@ -5,6 +5,7 @@ USE ITClubOrgDB;
 CREATE TABLE IF NOT EXISTS member_registration_requests (
     member_id VARCHAR(20) PRIMARY KEY,
     student_name VARCHAR(100) NOT NULL,
+    email VARCHAR(254) NULL,
     course VARCHAR(50) NOT NULL,
     year_level VARCHAR(20) NOT NULL,
     division_id INT NOT NULL,

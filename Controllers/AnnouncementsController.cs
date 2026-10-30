@@ -153,6 +153,40 @@ public sealed class AnnouncementsController(
         return View(model);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Delete(int announcementId, CancellationToken cancellationToken)
+    {
+        if (announcementId <= 0)
+        {
+            return BadRequest();
+        }
+
+        try
+        {
+            var deleted = await memberRepository.DeleteAnnouncementAsync(
+                announcementId,
+                UserDivision.GetDivisionId(User),
+                User.IsInRole("SuperAdmin"),
+                cancellationToken);
+            TempData[deleted ? "SuccessMessage" : "ErrorMessage"] = deleted
+                ? "The announcement was deleted."
+                : "This announcement no longer exists or is outside your division.";
+        }
+        catch (InvalidOperationException exception)
+        {
+            logger.LogError(exception, "Announcement {AnnouncementId} could not be deleted.", announcementId);
+            TempData["ErrorMessage"] = exception.Message;
+        }
+        catch (MySqlException exception)
+        {
+            logger.LogError(exception, "Announcement {AnnouncementId} could not be deleted from MySQL.", announcementId);
+            TempData["ErrorMessage"] = "The announcement could not be deleted. Check the member portal database migration.";
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
     private void SetPageMetadata()
     {
         ViewData["Title"] = "Announcements";

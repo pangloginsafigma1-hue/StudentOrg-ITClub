@@ -42,11 +42,17 @@ public interface IMemberPortalRepository
         int publishedBy,
         CancellationToken cancellationToken);
 
+    Task<bool> DeleteAnnouncementAsync(
+        int announcementId,
+        int? divisionId,
+        bool includeAllDivisions,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<MemberRegistrationRequest>> GetPendingRegistrationsAsync(
         int? divisionId,
         CancellationToken cancellationToken);
 
-    Task<bool> ApproveRegistrationAsync(
+    Task<RegistrationApprovalResult> ApproveRegistrationAsync(
         string memberId,
         int? divisionId,
         int reviewedBy,

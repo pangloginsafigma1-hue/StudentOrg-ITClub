@@ -40,13 +40,14 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
             existingStatus is null or DBNull
                 ? """
                   INSERT INTO member_registration_requests
-                      (member_id, student_name, course, year_level, division_id, password_hash, status)
+                      (member_id, student_name, email, course, year_level, division_id, password_hash, status)
                   VALUES
-                      (@memberId, @studentName, @course, @yearLevel, @divisionId, @passwordHash, 'Pending')
+                      (@memberId, @studentName, @email, @course, @yearLevel, @divisionId, @passwordHash, 'Pending')
                   """
                 : """
                   UPDATE member_registration_requests
                   SET student_name = @studentName,
+                      email = @email,
                       course = @course,
                       year_level = @yearLevel,
                       division_id = @divisionId,
@@ -367,6 +368,27 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<bool> DeleteAnnouncementAsync(
+        int announcementId,
+        int? divisionId,
+        bool includeAllDivisions,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new MySqlCommand(
+            """
+            DELETE FROM announcements
+            WHERE announcement_id = @announcementId
+              AND (@includeAllDivisions = 1 OR division_id = @divisionId)
+            """,
+            connection);
+        command.Parameters.Add("@announcementId", MySqlDbType.Int32).Value = announcementId;
+        command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        command.Parameters.Add("@includeAllDivisions", MySqlDbType.Bool).Value = includeAllDivisions;
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
     public async Task<IReadOnlyList<MemberRegistrationRequest>> GetPendingRegistrationsAsync(
         int? divisionId,
         CancellationToken cancellationToken)
@@ -376,7 +398,7 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         await using var command = new MySqlCommand(
             """
             SELECT r.member_id, r.student_name, r.course, r.year_level,
-                   d.name AS division_name, r.submitted_at
+                   d.name AS division_name, r.submitted_at, r.email
             FROM member_registration_requests r
             JOIN divisions d ON d.division_id = r.division_id
             WHERE r.status = 'Pending'
@@ -393,6 +415,7 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
             {
                 MemberId = reader.GetString("member_id"),
                 StudentName = reader.GetString("student_name"),
+                Email = reader.IsDBNull(reader.GetOrdinal("email")) ? null : reader.GetString("email"),
                 Course = reader.GetString("course"),
                 YearLevel = reader.GetString("year_level"),
                 DivisionName = reader.GetString("division_name"),
@@ -403,7 +426,7 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         return requests;
     }
 
-    public async Task<bool> ApproveRegistrationAsync(
+    public async Task<RegistrationApprovalResult> ApproveRegistrationAsync(
         string memberId,
         int? divisionId,
         int reviewedBy,
@@ -415,7 +438,7 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
 
         await using var requestCommand = new MySqlCommand(
             """
-            SELECT member_id, student_name, course, year_level, division_id, password_hash
+            SELECT member_id, student_name, email, course, year_level, division_id, password_hash
             FROM member_registration_requests
             WHERE member_id = @memberId AND status = 'Pending'
               AND (@divisionId IS NULL OR division_id = @divisionId)
@@ -429,12 +452,13 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         if (!await reader.ReadAsync(cancellationToken))
         {
             await transaction.RollbackAsync(cancellationToken);
-            return false;
+            return new RegistrationApprovalResult(false, null, string.Empty);
         }
 
         var request = new RegistrationRow(
             reader.GetString("member_id"),
             reader.GetString("student_name"),
+            reader.IsDBNull(reader.GetOrdinal("email")) ? null : reader.GetString("email"),
             reader.GetString("course"),
             reader.GetString("year_level"),
             reader.GetInt32("division_id"),
@@ -515,11 +539,11 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         if (await approveCommand.ExecuteNonQueryAsync(cancellationToken) != 1)
         {
             await transaction.RollbackAsync(cancellationToken);
-            return false;
+            return new RegistrationApprovalResult(false, null, string.Empty);
         }
 
         await transaction.CommitAsync(cancellationToken);
-        return true;
+        return new RegistrationApprovalResult(true, request.Email, request.StudentName);
     }
 
     public async Task<bool> RejectRegistrationAsync(
@@ -553,9 +577,16 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
     {
         await using var command = new MySqlCommand(
             """
-            SELECT a.announcement_id, a.title, a.body, a.created_at, d.name AS division_name
+            SELECT a.announcement_id, a.title, a.body, a.created_at, a.division_id,
+                   d.name AS division_name, publisher.full_name AS publisher_name,
+                   CASE publisher.role
+                       WHEN 'SuperAdmin' THEN 'Super Admin'
+                       WHEN 'DivisionAdmin' THEN 'Division Head'
+                       ELSE publisher.role
+                   END AS publisher_position
             FROM announcements a
             LEFT JOIN divisions d ON d.division_id = a.division_id
+            JOIN admins publisher ON publisher.admin_id = a.published_by
             WHERE @includeAllDivisions = 1 OR a.division_id IS NULL OR a.division_id = @divisionId
             ORDER BY a.created_at DESC
             LIMIT 50
@@ -570,9 +601,14 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
             announcements.Add(new MemberAnnouncement
             {
                 AnnouncementId = reader.GetInt32("announcement_id"),
+                DivisionId = reader.IsDBNull(reader.GetOrdinal("division_id"))
+                    ? null
+                    : reader.GetInt32("division_id"),
                 Title = reader.GetString("title"),
                 Body = reader.GetString("body"),
                 CreatedAt = reader.GetDateTime("created_at"),
+                PublisherName = reader.GetString("publisher_name"),
+                PublisherPosition = reader.GetString("publisher_position"),
                 DivisionName = reader.IsDBNull(reader.GetOrdinal("division_name"))
                     ? null
                     : reader.GetString("division_name")
@@ -589,6 +625,7 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
     {
         command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = model.MemberId;
         command.Parameters.Add("@studentName", MySqlDbType.VarChar, 100).Value = model.StudentName.Trim();
+        command.Parameters.Add("@email", MySqlDbType.VarChar, 254).Value = model.Email.Trim();
         command.Parameters.Add("@course", MySqlDbType.VarChar, 50).Value = model.Course;
         command.Parameters.Add("@yearLevel", MySqlDbType.VarChar, 20).Value = model.YearLevel;
         command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = model.DivisionId!.Value;
@@ -616,6 +653,7 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
     private sealed record RegistrationRow(
         string MemberId,
         string StudentName,
+        string? Email,
         string Course,
         string YearLevel,
         int DivisionId,

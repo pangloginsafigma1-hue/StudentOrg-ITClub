@@ -29,7 +29,7 @@
         <div class="settings-profile">
             <div class="settings-photo-column">
                 <img class="settings-photo"
-                     src="@(Model.HasPhoto ? Url.Action("Photo", "Settings") : Url.Content("~/images/logo.png"))"
+                     src="@(Model.HasPhoto ? Url.Action("Photo", "Settings") : Url.Content("~/images/somams-mark.svg"))"
                      alt="Administrator profile" />
                 <label class="btn btn-outline-primary photo-upload-button" for="Photo">Change Photo</label>
                 <input asp-for="Photo" id="Photo" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="visually-hidden" />

@@ -13,7 +13,6 @@ using MySqlConnector;
 namespace ITClubOrg.Controllers;
 
 [AllowAnonymous]
-[EnableRateLimiting("member-access")]
 public sealed class MemberAccessController(
     IMemberPortalRepository memberRepository,
     IDivisionRepository divisionRepository,
@@ -33,6 +32,7 @@ public sealed class MemberAccessController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("member-access")]
     public async Task<IActionResult> Login(MemberLoginViewModel model, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -123,10 +123,12 @@ public sealed class MemberAccessController(
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("member-access")]
     public async Task<IActionResult> Register(MemberRegistrationViewModel model, CancellationToken cancellationToken)
     {
         model.MemberId = model.MemberId?.Trim() ?? string.Empty;
         model.StudentName = model.StudentName?.Trim() ?? string.Empty;
+        model.Email = model.Email?.Trim() ?? string.Empty;
         try
         {
             if (!GetStudentIdPattern().IsMatch(model.MemberId))
@@ -218,6 +220,7 @@ public sealed class MemberAccessController(
         {
             MemberId = model.MemberId,
             StudentName = model.StudentName,
+            Email = model.Email,
             Course = model.Course,
             YearLevel = model.YearLevel,
             DivisionId = model.DivisionId,

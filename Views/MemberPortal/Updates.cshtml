@@ -9,12 +9,23 @@
     {
         @foreach (var announcement in Model.Announcements)
         {
-            <article class="member-announcement">
-                <div class="members-toolbar">
-                    <h3>@announcement.Title</h3>
-                    <small>@announcement.CreatedAt.ToString("MMM d, yyyy") · @(announcement.DivisionName ?? "Organization-wide")</small>
-                </div>
-                <p>@announcement.Body</p>
+            <article class="announcement-card">
+                <header class="announcement-card-header">
+                    <div class="announcement-title-group">
+                        <span class="announcement-scope">@(announcement.DivisionName ?? "Organization-wide")</span>
+                        <h3>@announcement.Title</h3>
+                    </div>
+                </header>
+                <p class="announcement-body">@announcement.Body</p>
+                <footer class="announcement-meta">
+                    <span class="announcement-author">
+                        <strong>@announcement.PublisherName</strong>
+                        <span>@announcement.PublisherPosition</span>
+                    </span>
+                    <span class="announcement-posted">
+                        Posted <time datetime="@announcement.CreatedAt.ToString("O")">@announcement.CreatedAt.ToString("MMM d, yyyy 'at' h:mm tt")</time>
+                    </span>
+                </footer>
             </article>
         }
     }

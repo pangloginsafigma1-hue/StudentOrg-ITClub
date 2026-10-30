@@ -6,9 +6,9 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#000080" />
+    <meta name="theme-color" content="#172554" />
     <title>@ViewData["Title"] - SOMAMS Member Portal</title>
-    <link rel="icon" type="image/png" href="~/images/logo.png" />
+    <link rel="icon" type="image/svg+xml" href="~/images/somams-mark.svg" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
@@ -16,21 +16,39 @@
     <a class="skip-link" href="#mainContent">Skip to content</a>
     <aside class="sidebar">
         <a class="brand" asp-controller="MemberPortal" asp-action="Index" aria-label="Member portal home">
-            <img src="~/images/logo.png" alt="" />
+            <img src="~/images/somams-mark.svg" alt="" />
             <span class="brand-copy">
                 <strong>SOMAMS</strong>
                 <small>Member Portal</small>
             </span>
         </a>
         <nav class="sidebar-nav" aria-label="Member navigation">
-            <a class="sidebar-link @(activeSection == "home" ? "active" : "")" asp-controller="MemberPortal" asp-action="Index"><span>Home</span></a>
-            <a class="sidebar-link @(activeSection == "activities" ? "active" : "")" asp-controller="MemberPortal" asp-action="Activities"><span>Activities</span></a>
-            <a class="sidebar-link @(activeSection == "account" ? "active" : "")" asp-controller="MemberPortal" asp-action="Record"><span>Account</span></a>
-            <a class="sidebar-link @(activeSection == "my-attendance" ? "active" : "")" asp-controller="MemberPortal" asp-action="Attendance"><span>My Attendance</span></a>
-            <a class="sidebar-link @(activeSection == "updates" ? "active" : "")" asp-controller="MemberPortal" asp-action="Updates"><span>Updates</span></a>
+            <a class="sidebar-link @(activeSection == "home" ? "active" : "")" asp-controller="MemberPortal" asp-action="Index">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 9-8 9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1v-9Z" /></svg></span>
+                <span>Home</span>
+            </a>
+            <a class="sidebar-link @(activeSection == "activities" ? "active" : "")" asp-controller="MemberPortal" asp-action="Activities">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2" /><path d="M7.5 3v4M16.5 3v4M3.5 10h17" /></svg></span>
+                <span>Activities</span>
+            </a>
+            <a class="sidebar-link @(activeSection == "account" ? "active" : "")" asp-controller="MemberPortal" asp-action="Record">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5" /><path d="M4 21a8 8 0 0 1 16 0M17 4l2 2 3-3" /></svg></span>
+                <span>Account</span>
+            </a>
+            <a class="sidebar-link @(activeSection == "my-attendance" ? "active" : "")" asp-controller="MemberPortal" asp-action="Attendance">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16.5 9" /></svg></span>
+                <span>My Attendance</span>
+            </a>
+            <a class="sidebar-link @(activeSection == "updates" ? "active" : "")" asp-controller="MemberPortal" asp-action="Updates">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13V9a2 2 0 0 1 2-2h2l9-4v16l-9-4H6a2 2 0 0 1-2-2Z" /><path d="m8 15 1.5 5h3L11 16M20 9v4" /></svg></span>
+                <span>Updates</span>
+            </a>
         </nav>
         <form class="sidebar-logout" asp-controller="Auth" asp-action="Logout" method="post">
-            <button class="sidebar-link" type="submit"><span>Logout</span></button>
+            <button class="sidebar-link" type="submit">
+                <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17l5-5-5-5M15 12H3" /><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" /></svg></span>
+                <span>Logout</span>
+            </button>
         </form>
     </aside>
     <main class="main-content" id="mainContent">

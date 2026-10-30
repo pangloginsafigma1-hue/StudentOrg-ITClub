@@ -16,6 +16,12 @@ public sealed class MemberRegistrationViewModel
     public string StudentName { get; set; } = string.Empty;
 
     [Required]
+    [EmailAddress]
+    [StringLength(254)]
+    [Display(Name = "Email address")]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
     [StringLength(50)]
     public string Course { get; set; } = string.Empty;
 

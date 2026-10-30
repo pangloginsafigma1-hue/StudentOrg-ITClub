@@ -2,77 +2,126 @@
 @{
     ViewData["Title"] = "Member Registration";
 }
-<main class="login-shell">
-    <section class="login-card" aria-labelledby="register-title">
-        <div class="login-brand">
-            <img src="~/images/logo.png" alt="" />
-            <span>SOMAMS</span>
+<main class="login-shell register-shell">
+    <aside class="login-intro register-intro" aria-label="About membership registration">
+        <div class="login-intro-brand">
+            <img src="~/images/somams-mark.svg" alt="" />
+            <span><strong>SOMAMS</strong><small>Student Organization</small></span>
         </div>
-        <p class="login-eyebrow">Member Portal</p>
-        <h1 id="register-title">Join the organization</h1>
-        <p class="login-subtitle">Submit your details for administrator review. Portal access starts after approval.</p>
+        <div class="login-intro-copy">
+            <span class="login-intro-kicker">College of Computer Studies</span>
+            <h2>Find your place in the community.</h2>
+            <p>Become part of the organization and stay connected to the people, activities, and opportunities that bring us together.</p>
+        </div>
+        <div class="register-steps">
+            <h2>What happens next</h2>
+            <ol>
+                <li><span>1</span><div><strong>Send your details</strong><small>Complete the member application.</small></div></li>
+                <li><span>2</span><div><strong>Wait for review</strong><small>An administrator checks your information.</small></div></li>
+                <li><span>3</span><div><strong>Sign in after approval</strong><small>Use your Student ID and password.</small></div></li>
+            </ol>
+        </div>
+        <div class="login-intro-foot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3 4 6v5c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-3Z" />
+                <path d="m9 12 2 2 4-4" />
+            </svg>
+            <span>Your account is activated after approval</span>
+        </div>
+    </aside>
+    <section class="login-card login-card-redesign register-card" aria-labelledby="register-title">
+        <div class="register-card-heading">
+            <span class="login-eyebrow">Member portal · Application</span>
+            <h1 id="register-title">Create your account</h1>
+            <p class="login-subtitle">Enter your student details to request member portal access.</p>
+        </div>
         @if (ViewData["DatabaseError"] is string databaseError)
         {
             <div class="alert alert-danger" role="alert">@databaseError</div>
         }
         <div asp-validation-summary="ModelOnly" class="alert alert-danger login-alert" role="alert"></div>
-        <form asp-action="Register" method="post" class="login-form">
-            <div class="form-field">
-                <label asp-for="MemberId"></label>
-                <input asp-for="MemberId" class="form-control" autocomplete="username" />
-                <span asp-validation-for="MemberId" class="field-error"></span>
+        <form asp-action="Register" method="post" class="login-form register-form">
+            <div class="register-form-section">
+                <div class="register-section-heading">
+                    <span>01</span>
+                    <div><h2>Student information</h2><p>Use the details associated with your school record.</p></div>
+                </div>
+                <div class="register-fields">
+                    <div class="form-field">
+                        <label asp-for="MemberId"></label>
+                        <input asp-for="MemberId" class="form-control" autocomplete="username" />
+                        <span asp-validation-for="MemberId" class="field-error"></span>
+                    </div>
+                    <div class="form-field">
+                        <label asp-for="StudentName"></label>
+                        <input asp-for="StudentName" class="form-control" autocomplete="name" />
+                        <span asp-validation-for="StudentName" class="field-error"></span>
+                    </div>
+                    <div class="form-field register-field-wide">
+                        <label asp-for="Email"></label>
+                        <input asp-for="Email" class="form-control" autocomplete="email" inputmode="email" />
+                        <span asp-validation-for="Email" class="field-error"></span>
+                        <small>We’ll email you when your registration is approved.</small>
+                    </div>
+                    <div class="form-field">
+                        <label asp-for="Course"></label>
+                        <select asp-for="Course" class="form-select">
+                            <option value="">Choose a course</option>
+                            @foreach (var course in Model.Courses)
+                            {
+                                <option value="@course">@course</option>
+                            }
+                        </select>
+                        <span asp-validation-for="Course" class="field-error"></span>
+                    </div>
+                    <div class="form-field">
+                        <label asp-for="YearLevel"></label>
+                        <select asp-for="YearLevel" class="form-select">
+                            <option value="">Choose a year level</option>
+                            @foreach (var year in Model.YearLevels)
+                            {
+                                <option value="@year">@year</option>
+                            }
+                        </select>
+                        <span asp-validation-for="YearLevel" class="field-error"></span>
+                    </div>
+                    <div class="form-field register-field-wide">
+                        <label asp-for="DivisionId"></label>
+                        <select asp-for="DivisionId" class="form-select">
+                            <option value="">Choose a division</option>
+                            @foreach (var division in Model.Divisions)
+                            {
+                                <option value="@division.DivisionId">@division.Name</option>
+                            }
+                        </select>
+                        <span asp-validation-for="DivisionId" class="field-error"></span>
+                    </div>
+                </div>
             </div>
-            <div class="form-field">
-                <label asp-for="StudentName"></label>
-                <input asp-for="StudentName" class="form-control" autocomplete="name" />
-                <span asp-validation-for="StudentName" class="field-error"></span>
+            <div class="register-form-section register-password-section">
+                <div class="register-section-heading">
+                    <span>02</span>
+                    <div><h2>Secure your account</h2><p>Create a password you haven't used elsewhere.</p></div>
+                </div>
+                <div class="register-fields">
+                    <div class="form-field">
+                        <label asp-for="Password"></label>
+                        <input asp-for="Password" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="Password" class="field-error"></span>
+                        <small>Use 12 to 72 characters (no more than 72 UTF-8 bytes).</small>
+                    </div>
+                    <div class="form-field">
+                        <label asp-for="ConfirmPassword"></label>
+                        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                        <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+                    </div>
+                </div>
             </div>
-            <div class="form-field">
-                <label asp-for="Course"></label>
-                <select asp-for="Course" class="form-select">
-                    <option value="">Choose a course</option>
-                    @foreach (var course in Model.Courses)
-                    {
-                        <option value="@course">@course</option>
-                    }
-                </select>
-                <span asp-validation-for="Course" class="field-error"></span>
+            <div class="register-submit-row">
+                <span>Your request will be reviewed before access is enabled.</span>
+                <button class="btn btn-primary login-submit" type="submit" @(Model.Divisions.Count == 0 ? "disabled" : null)>Submit application</button>
             </div>
-            <div class="form-field">
-                <label asp-for="YearLevel"></label>
-                <select asp-for="YearLevel" class="form-select">
-                    <option value="">Choose a year level</option>
-                    @foreach (var year in Model.YearLevels)
-                    {
-                        <option value="@year">@year</option>
-                    }
-                </select>
-                <span asp-validation-for="YearLevel" class="field-error"></span>
-            </div>
-            <div class="form-field">
-                <label asp-for="DivisionId"></label>
-                <select asp-for="DivisionId" class="form-select">
-                    <option value="">Choose a division</option>
-                    @foreach (var division in Model.Divisions)
-                    {
-                        <option value="@division.DivisionId">@division.Name</option>
-                    }
-                </select>
-                <span asp-validation-for="DivisionId" class="field-error"></span>
-            </div>
-            <div class="form-field">
-                <label asp-for="Password"></label>
-                <input asp-for="Password" class="form-control" autocomplete="new-password" />
-                <span asp-validation-for="Password" class="field-error"></span>
-                <small>Use 12 to 72 characters (no more than 72 UTF-8 bytes).</small>
-            </div>
-            <div class="form-field">
-                <label asp-for="ConfirmPassword"></label>
-                <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
-                <span asp-validation-for="ConfirmPassword" class="field-error"></span>
-            </div>
-            <button class="btn btn-primary login-submit" type="submit" @(Model.Divisions.Count == 0 ? "disabled" : null)>Submit Registration</button>
         </form>
-        <p class="login-footer"><a asp-action="Login">Already registered? Sign in</a></p>
+        <p class="login-footer register-login-link">Already have an account? <a asp-action="Login">Sign in to the member portal</a></p>
     </section>
 </main>

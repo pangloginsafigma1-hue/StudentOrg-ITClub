@@ -1,4 +1,9 @@
 @model IReadOnlyList<MemberAnnouncement>
+@using ITClubOrg.Services
+@{
+    var isSuperAdmin = User.IsInRole("SuperAdmin");
+    var divisionScope = UserDivision.GetDivisionId(User);
+}
 @if (TempData["SuccessMessage"] is string successMessage)
 {
     <div class="alert alert-success" role="status">@successMessage</div>
@@ -24,13 +29,60 @@
     {
         @foreach (var announcement in Model)
         {
-            <article class="member-announcement">
-                <div class="members-toolbar">
-                    <h3>@announcement.Title</h3>
-                    <small>@announcement.CreatedAt.ToString("MMM d, yyyy") · @(announcement.DivisionName ?? "Organization-wide")</small>
-                </div>
-                <p>@announcement.Body</p>
+            var canDeleteAnnouncement = isSuperAdmin
+                || divisionScope.HasValue && announcement.DivisionId == divisionScope;
+            <article class="announcement-card">
+                <header class="announcement-card-header">
+                    <div class="announcement-title-group">
+                        <span class="announcement-scope">@(announcement.DivisionName ?? "Organization-wide")</span>
+                        <h3>@announcement.Title</h3>
+                    </div>
+                    @if (canDeleteAnnouncement)
+                    {
+                        <button class="btn btn-outline-danger announcement-delete-button" type="button"
+                                data-bs-toggle="modal"
+                                data-bs-target="#deleteAnnouncement-@announcement.AnnouncementId"
+                                aria-label="Delete announcement: @announcement.Title">
+                            <img src="~/images/ic_delete.png" alt="" />
+                            <span>Delete</span>
+                        </button>
+                    }
+                </header>
+                <p class="announcement-body">@announcement.Body</p>
+                <footer class="announcement-meta">
+                    <span class="announcement-author">
+                        <strong>@announcement.PublisherName</strong>
+                        <span>@announcement.PublisherPosition</span>
+                    </span>
+                    <span class="announcement-posted">
+                        Posted <time datetime="@announcement.CreatedAt.ToString("O")">@announcement.CreatedAt.ToString("MMM d, yyyy 'at' h:mm tt")</time>
+                    </span>
+                </footer>
             </article>
+            @if (canDeleteAnnouncement)
+            {
+                <div class="modal fade" id="deleteAnnouncement-@announcement.AnnouncementId" tabindex="-1"
+                     aria-labelledby="deleteAnnouncementTitle-@announcement.AnnouncementId" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content logout-modal">
+                            <div class="modal-header">
+                                <h2 class="modal-title" id="deleteAnnouncementTitle-@announcement.AnnouncementId">Delete announcement?</h2>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Delete “@announcement.Title”? Members will no longer see this post.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                                <form asp-controller="Announcements" asp-action="Delete" method="post">
+                                    <input type="hidden" name="announcementId" value="@announcement.AnnouncementId" />
+                                    <button class="btn btn-danger" type="submit">Yes, Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
         }
     }
 </section>

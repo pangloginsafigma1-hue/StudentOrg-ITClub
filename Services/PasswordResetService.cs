@@ -65,25 +65,17 @@ public sealed class PasswordResetService(
         catch (InvalidOperationException exception)
         {
             logger.LogError(exception, "Password recovery email is not configured.");
-            CacheChallenge(flowToken, 0, RandomNumberGenerator.GetInt32(100000, 1000000).ToString());
-            return true;
+            throw;
         }
-        catch (Exception exception) when (exception is SmtpException or OperationCanceledException)
+        catch (SmtpException exception)
         {
             logger.LogError(exception, "A password recovery email could not be sent.");
-            if (exception is OperationCanceledException)
-            {
-                throw;
-            }
-
-            CacheChallenge(flowToken, 0, RandomNumberGenerator.GetInt32(100000, 1000000).ToString());
-            return true;
+            throw;
         }
         catch (FormatException exception)
         {
             logger.LogError(exception, "The administrator email address could not be used for password recovery.");
-            CacheChallenge(flowToken, 0, RandomNumberGenerator.GetInt32(100000, 1000000).ToString());
-            return true;
+            throw;
         }
 
         CacheChallenge(flowToken, account.AdminId, code);

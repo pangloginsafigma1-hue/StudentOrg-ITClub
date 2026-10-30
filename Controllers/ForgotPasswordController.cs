@@ -83,6 +83,16 @@ public sealed class ForgotPasswordController(
             SetPageMetadata();
             return View("Index", model);
         }
+        catch (FormatException exception)
+        {
+            logger.LogError(exception, "The password recovery email address or sender configuration is invalid.");
+            ModelState.Clear();
+            model.Step = "email";
+            model.FlowToken = CreateFlowToken();
+            model.Message = "Password recovery is unavailable right now. Contact your system administrator.";
+            SetPageMetadata();
+            return View("Index", model);
+        }
     }
 
     [HttpPost]

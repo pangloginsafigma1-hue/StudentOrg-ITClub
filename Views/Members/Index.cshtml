@@ -108,6 +108,7 @@
                     <tr>
                         <th scope="col">Student ID</th>
                         <th scope="col">Name</th>
+                        <th scope="col">Email</th>
                         <th scope="col">Course</th>
                         <th scope="col">Year</th>
                         <th scope="col">Division</th>
@@ -121,6 +122,7 @@
                         <tr>
                             <td>@request.MemberId</td>
                             <td>@request.StudentName</td>
+                            <td>@(string.IsNullOrWhiteSpace(request.Email) ? "Not provided" : request.Email)</td>
                             <td>@request.Course</td>
                             <td>@request.YearLevel</td>
                             <td>@request.DivisionName</td>

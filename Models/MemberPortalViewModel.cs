@@ -28,11 +28,17 @@ public sealed class MemberAnnouncement
 {
     public int AnnouncementId { get; init; }
 
+    public int? DivisionId { get; init; }
+
     public string Title { get; init; } = string.Empty;
 
     public string Body { get; init; } = string.Empty;
 
     public DateTime CreatedAt { get; init; }
+
+    public string PublisherName { get; init; } = string.Empty;
+
+    public string PublisherPosition { get; init; } = string.Empty;
 
     public string? DivisionName { get; init; }
 }
@@ -43,6 +49,8 @@ public sealed class MemberRegistrationRequest
 
     public string StudentName { get; init; } = string.Empty;
 
+    public string? Email { get; init; }
+
     public string Course { get; init; } = string.Empty;
 
     public string YearLevel { get; init; } = string.Empty;
@@ -51,3 +59,5 @@ public sealed class MemberRegistrationRequest
 
     public DateTime SubmittedAt { get; init; }
 }
+
+public sealed record RegistrationApprovalResult(bool Approved, string? Email, string StudentName);

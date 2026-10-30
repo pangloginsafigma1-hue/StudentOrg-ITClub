@@ -10,6 +10,7 @@ namespace ITClubOrg.Controllers;
 public sealed class MembersController(
     IMemberRepository memberRepository,
     IMemberPortalRepository memberPortalRepository,
+    IEmailSender emailSender,
     ILogger<MembersController> logger) : Controller
 {
     private const int MaxSearchLength = 100;
@@ -74,14 +75,50 @@ public sealed class MembersController(
 
         try
         {
-            var approved = await memberPortalRepository.ApproveRegistrationAsync(
+            var approval = await memberPortalRepository.ApproveRegistrationAsync(
                 memberId,
                 UserDivision.GetDivisionId(User),
                 GetAdminId(),
                 cancellationToken);
-            TempData[approved ? "SuccessMessage" : "ErrorMessage"] = approved
-                ? $"Registration for {memberId} was approved."
-                : "This request is no longer pending or is outside your division.";
+            if (!approval.Approved)
+            {
+                TempData["ErrorMessage"] = "This request is no longer pending or is outside your division.";
+            }
+            else if (string.IsNullOrWhiteSpace(approval.Email))
+            {
+                TempData["SuccessMessage"] = $"Registration for {memberId} was approved.";
+                TempData["ErrorMessage"] = "No email address was recorded for this older request, so the member could not be notified.";
+            }
+            else
+            {
+                try
+                {
+                    await emailSender.SendRegistrationApprovedAsync(
+                        approval.Email,
+                        approval.StudentName,
+                        memberId,
+                        CancellationToken.None);
+                    TempData["SuccessMessage"] = $"Registration for {memberId} was approved and an email notification was sent.";
+                }
+                catch (InvalidOperationException exception)
+                {
+                    logger.LogError(exception, "Registration for member {MemberId} was approved, but its email notification could not be sent.", memberId);
+                    TempData["SuccessMessage"] = $"Registration for {memberId} was approved.";
+                    TempData["ErrorMessage"] = "The member notification email could not be sent. Check the email configuration and contact the member.";
+                }
+                catch (System.Net.Mail.SmtpException exception)
+                {
+                    logger.LogError(exception, "Registration for member {MemberId} was approved, but its email notification could not be sent.", memberId);
+                    TempData["SuccessMessage"] = $"Registration for {memberId} was approved.";
+                    TempData["ErrorMessage"] = "The member notification email could not be sent. Check the email configuration and contact the member.";
+                }
+                catch (Exception exception) when (exception is FormatException or ArgumentException)
+                {
+                    logger.LogError(exception, "Registration for member {MemberId} was approved, but its email address or sender configuration is invalid.", memberId);
+                    TempData["SuccessMessage"] = $"Registration for {memberId} was approved.";
+                    TempData["ErrorMessage"] = "The member notification email could not be sent because an email address is invalid. Check the email configuration and contact the member.";
+                }
+            }
         }
         catch (InvalidOperationException exception)
         {

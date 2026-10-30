@@ -12,6 +12,26 @@ document.querySelectorAll("[data-password-toggle]").forEach((button) => {
     });
 });
 
+document.querySelectorAll("[data-portal-transition]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+        if (!(event instanceof MouseEvent)
+            || event.button !== 0
+            || event.metaKey
+            || event.ctrlKey
+            || event.shiftKey
+            || event.altKey
+            || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            return;
+        }
+
+        event.preventDefault();
+        document.body.classList.add("auth-transition-out");
+        window.setTimeout(() => {
+            window.location.assign(link.href);
+        }, 160);
+    });
+});
+
 document.querySelectorAll("[data-student-id='true']").forEach((input) => {
     input.addEventListener("input", () => {
         if (input instanceof HTMLInputElement) {

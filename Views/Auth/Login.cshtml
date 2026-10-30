@@ -3,15 +3,29 @@
     ViewData["Title"] = "Login";
 }
 
-<main class="login-shell">
-    <section class="login-card" aria-labelledby="login-title">
-        <div class="login-brand">
-            <img src="~/images/logo.png" alt="" />
-            <span>SOMAMS</span>
+<main class="login-shell login-shell-redesign">
+    <aside class="login-intro" aria-label="SOMAMS introduction">
+        <div class="login-intro-brand">
+            <img src="~/images/somams-mark.svg" alt="" />
+            <span><strong>SOMAMS</strong><small>Student Organization</small></span>
         </div>
-        <p class="login-eyebrow">College of Computer Studies</p>
+        <div class="login-intro-copy">
+            <span class="login-intro-kicker">College of Computer Studies</span>
+            <h2>Make every member moment count.</h2>
+            <p>A shared space to support your organization, bring people together, and keep the work moving.</p>
+        </div>
+        <div class="login-intro-foot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3 4 6v5c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V6l-8-3Z" />
+                <path d="m9 12 2 2 4-4" />
+            </svg>
+            <span>One place for your organization to thrive</span>
+        </div>
+    </aside>
+    <section class="login-card login-card-redesign" aria-labelledby="login-title">
+        <p class="login-eyebrow">Administrator access</p>
         <h1 id="login-title">Welcome back</h1>
-        <p class="login-subtitle">Administrator sign-in to manage your student organization.</p>
+        <p class="login-subtitle">Sign in to manage your student organization.</p>
 
         @if (TempData["SuccessMessage"] is string successMessage)
         {
@@ -49,11 +63,8 @@
             <button class="btn btn-primary login-submit" type="submit">Sign In</button>
         </form>
 
-        <p class="login-footer">Student Organization Membership and Management System</p>
-        <p class="login-footer"><a asp-controller="MemberAccess" asp-action="Login">Member Portal sign in</a></p>
+        <p class="login-footer portal-switch-footer">
+            Need the member portal? <a class="portal-switch-link" data-portal-transition asp-controller="MemberAccess" asp-action="Login">Member Portal sign in</a>
+        </p>
     </section>
 </main>
-
-@section Scripts {
-    <script src="~/js/site.js" asp-append-version="true"></script>
-}
