@@ -15,6 +15,7 @@ public interface IReportsRepository
         string? position,
         string? status,
         IReadOnlyList<int> divisionIds,
+        bool includeStatus,
         CancellationToken cancellationToken);
 
     Task<ReportTable> GetActivitiesReportAsync(

@@ -16,14 +16,17 @@ public sealed class MemberRepository(MySqlConnectionFactory connectionFactory) :
         await using var command = connection.CreateCommand();
         command.CommandText =
             """
-            SELECT m.member_id, m.student_name, m.course, m.year_level, m.position, m.status,
+            SELECT m.member_id, m.student_name, COALESCE(m.email, p.email) AS email,
+                   m.course, m.year_level, m.position, m.status,
                    m.date_joined, m.division_id, d.name AS division_name
             FROM members m
             LEFT JOIN divisions d ON d.division_id = m.division_id
+            LEFT JOIN member_portal_accounts p ON p.member_id = m.member_id
             WHERE (@divisionId IS NULL OR m.division_id = @divisionId)
               AND (@search = ''
                    OR m.member_id LIKE @pattern
                    OR m.student_name LIKE @pattern
+                   OR COALESCE(m.email, p.email) LIKE @pattern
                    OR m.course LIKE @pattern
                    OR m.year_level LIKE @pattern
                    OR m.position LIKE @pattern
@@ -54,10 +57,12 @@ public sealed class MemberRepository(MySqlConnectionFactory connectionFactory) :
 
         await using var command = new MySqlCommand(
             """
-            SELECT m.member_id, m.student_name, m.course, m.year_level, m.position, m.status,
+            SELECT m.member_id, m.student_name, COALESCE(m.email, p.email) AS email,
+                   m.course, m.year_level, m.position, m.status,
                    m.date_joined, m.division_id, d.name AS division_name
             FROM members m
             LEFT JOIN divisions d ON d.division_id = m.division_id
+            LEFT JOIN member_portal_accounts p ON p.member_id = m.member_id
             WHERE m.member_id = @memberId
               AND (@divisionId IS NULL OR m.division_id = @divisionId)
             LIMIT 1
@@ -80,9 +85,9 @@ public sealed class MemberRepository(MySqlConnectionFactory connectionFactory) :
         await using var command = new MySqlCommand(
             """
             INSERT INTO members
-                (member_id, student_name, course, year_level, position, status, date_joined, division_id)
+                (member_id, student_name, email, course, year_level, position, status, date_joined, division_id)
             VALUES
-                (@memberId, @studentName, @course, @yearLevel, @position, @status, @dateJoined, @divisionId)
+                (@memberId, @studentName, @email, @course, @yearLevel, @position, @status, @dateJoined, @divisionId)
             """,
             connection);
         AddMemberParameters(command, member);
@@ -97,11 +102,13 @@ public sealed class MemberRepository(MySqlConnectionFactory connectionFactory) :
 
         await using var connection = connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
 
         await using var command = new MySqlCommand(
             """
             UPDATE members
             SET student_name = @studentName,
+                email = @email,
                 course = @course,
                 year_level = @yearLevel,
                 position = @position,
@@ -111,13 +118,26 @@ public sealed class MemberRepository(MySqlConnectionFactory connectionFactory) :
             WHERE member_id = @memberId
               AND (@divisionId IS NULL OR division_id = @divisionId)
             """,
-            connection);
+            connection,
+            transaction);
         AddMemberParameters(command, member);
         command.Parameters.Add("@memberDivisionId", MySqlDbType.Int32).Value =
             (object?)member.DivisionId ?? DBNull.Value;
         command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        if (await command.ExecuteNonQueryAsync(cancellationToken) == 1)
+        {
+            await using var portalEmail = new MySqlCommand(
+                "UPDATE member_portal_accounts SET email = @email WHERE member_id = @memberId",
+                connection,
+                transaction);
+            portalEmail.Parameters.Add("@email", MySqlDbType.VarChar, 254).Value =
+                (object?)member.Email ?? DBNull.Value;
+            portalEmail.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = member.MemberId;
+            await portalEmail.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(string memberId, int? divisionId, CancellationToken cancellationToken)
@@ -163,6 +183,7 @@ public sealed class MemberRepository(MySqlConnectionFactory connectionFactory) :
     {
         command.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = member.MemberId;
         command.Parameters.Add("@studentName", MySqlDbType.VarChar, 100).Value = member.StudentName;
+        command.Parameters.Add("@email", MySqlDbType.VarChar, 254).Value = (object?)member.Email ?? DBNull.Value;
         command.Parameters.Add("@course", MySqlDbType.VarChar, 50).Value = member.Course;
         command.Parameters.Add("@yearLevel", MySqlDbType.VarChar, 20).Value = member.YearLevel;
         command.Parameters.Add("@position", MySqlDbType.VarChar, 50).Value = member.Position;
@@ -183,6 +204,9 @@ public sealed class MemberRepository(MySqlConnectionFactory connectionFactory) :
         {
             MemberId = reader.GetString("member_id"),
             StudentName = reader.GetString("student_name"),
+            Email = reader.IsDBNull(reader.GetOrdinal("email"))
+                ? null
+                : reader.GetString("email"),
             Course = reader.GetString("course"),
             YearLevel = reader.GetString("year_level"),
             Position = reader.GetString("position"),

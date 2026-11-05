@@ -42,7 +42,6 @@
                         <th scope="col">Date</th>
                         <th scope="col">Location</th>
                         <th scope="col">Status</th>
-                        <th scope="col">Registration</th>
                         <th scope="col">Attendance</th>
                         <th scope="col" class="activity-actions-heading">Actions</th>
                     </tr>
@@ -53,22 +52,16 @@
                         <tr>
                             <td>@activity.ActivityId</td>
                             <td>@activity.ActivityName</td>
-                            <td>@(activity.DivisionName ?? "Unassigned (super admin only)")</td>
+                            <td>@(activity.DivisionName ?? "All Divisions")</td>
                             <td>@activity.ActivityDate.ToString("MMM dd, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM dd, yyyy h:mm tt")</td>
                             <td>@activity.Location</td>
                             <td><span class="activity-status status-@activity.Status.ToLowerInvariant()">@activity.Status</span></td>
-                            <td>
-                                <span class="status-badge @(activity.IsRegistrationOpen ? "status-active" : "status-inactive")">
-                                    @(activity.IsRegistrationOpen ? "Open" : "Closed")
-                                </span>
-                            </td>
                             <td>
                                 <span class="status-badge @(activity.AttendanceDone ? "status-active" : "status-inactive")">
                                     @(activity.AttendanceDone ? "Recorded" : "Not yet")
                                 </span>
                             </td>
                             <td class="actions-cell">
-                                <a class="btn btn-sm btn-outline-primary" asp-controller="Activities" asp-action="Registrations" asp-route-activityId="@activity.ActivityId">Registrations</a>
                                 <button class="icon-action" type="button"
                                         data-bs-toggle="modal"
                                         data-bs-target="#activityModal"
@@ -80,7 +73,6 @@
                                         data-activity-end-date="@activity.ActivityEndDate.ToString("yyyy-MM-dd'T'HH:mm")"
                                         data-activity-status="@activity.Status"
                                         data-activity-description="@activity.Description"
-                                        data-activity-registration-open="@activity.IsRegistrationOpen"
                                         data-activity-division-id="@activity.DivisionId"
                                         data-activity-division-id-2="@activity.DivisionId2"
                                         aria-label="Edit @activity.ActivityName"
@@ -131,38 +123,24 @@
                 <div class="modal-body">
                     <div asp-validation-summary="ModelOnly" class="alert alert-danger form-summary" role="alert"></div>
                     <div class="activity-modal-fields">
-                        <div class="form-field">
-                            @if (Model.CanChooseDivision)
+                        @if (Model.CanChooseDivision)
+                        {
+                            <partial name="_DivisionDropdown" model='new DivisionDropdownViewModel
                             {
-                                <label>Divisions <small>(choose up to 2)</small></label>
-                                <details class="division-dropdown" data-division-dropdown data-max-selections="2">
-                                    <summary class="division-dropdown-trigger">
-                                        <span data-division-label>Select divisions</span>
-                                        <span class="division-dropdown-chevron" aria-hidden="true"></span>
-                                    </summary>
-                                    <div class="division-dropdown-menu" role="group" aria-label="Activity divisions">
-                                        <label class="division-check-option">
-                                            <input type="checkbox" name="Form.DivisionIds" value="" checked="@(Model.Form.DivisionIds.Length == 0 ? "checked" : null)" />
-                                            <span>All divisions</span>
-                                        </label>
-                                        @foreach (var division in Model.Divisions)
-                                        {
-                                        <label class="division-check-option">
-                                            <input type="checkbox" name="Form.DivisionIds" value="@division.DivisionId" checked="@(Model.Form.DivisionIds.Contains(division.DivisionId) ? "checked" : null)" />
-                                            <span>@division.Name</span>
-                                        </label>
-                                        }
-                                    </div>
-                                </details>
-                                <span asp-validation-for="Form.DivisionIds" class="field-error"></span>
-                            }
-                            else
-                            {
+                                InputName = "Form.DivisionIds",
+                                Divisions = Model.Divisions,
+                                SelectedDivisionIds = Model.Form.DivisionIds,
+                                ValidationName = "Form.DivisionIds"
+                            }' />
+                        }
+                        else
+                        {
+                            <div class="form-field">
                                 <label asp-for="Form.DivisionId">Division</label>
                                 <input asp-for="Form.DivisionId" type="hidden" id="activityDivision" />
                                 <span>@User.FindFirst("division_name")?.Value</span>
-                            }
-                        </div>
+                            </div>
+                        }
                         <div class="form-field">
                             <label asp-for="Form.ActivityName"></label>
                             <input asp-for="Form.ActivityName" class="form-control" maxlength="150" id="activityName" />
@@ -197,13 +175,6 @@
                             <label asp-for="Form.Description"></label>
                             <textarea asp-for="Form.Description" class="form-control" rows="4" id="activityDescription"></textarea>
                             <span asp-validation-for="Form.Description" class="field-error"></span>
-                        </div>
-                        <div class="form-field activity-registration-field">
-                            <label class="form-check">
-                                <input asp-for="Form.IsRegistrationOpen" class="form-check-input" id="activityRegistrationOpen" />
-                                <span class="form-check-label">Open member registration</span>
-                            </label>
-                            <small class="field-hint">Members can register for this activity from the member portal.</small>
                         </div>
                     </div>
                 </div>

@@ -136,11 +136,11 @@ public sealed class AdminAuthService(
             || string.IsNullOrWhiteSpace(password)
             || username.Length > 50
             || fullName.Length > 100
-            || email.Length > 100
-            || password.Length < 12)
+            || email.Length > 254
+            || password.Length < 6)
         {
             throw new InvalidOperationException(
-                "BootstrapAdmin requires a username, full name, email, and a password of at least 12 characters.");
+                "BootstrapAdmin requires a username, full name, email, and a password of at least 6 characters.");
         }
 
         await using var insertCommand = new MySqlCommand(

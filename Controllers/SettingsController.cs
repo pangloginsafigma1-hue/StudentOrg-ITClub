@@ -1,3 +1,4 @@
+using System.Text;
 using System.Security.Claims;
 using ITClubOrg.Models;
 using ITClubOrg.Services;
@@ -15,6 +16,13 @@ public sealed class SettingsController(
     ILogger<SettingsController> logger) : Controller
 {
     private const int MaxPhotoBytes = 4 * 1024 * 1024;
+    private const string PlaceholderPhoto = """
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+            <rect width="64" height="64" rx="32" fill="#e9edf7"/>
+            <circle cx="32" cy="24" r="12" fill="#7180a7"/>
+            <path d="M10 60c1-13 9-21 22-21s21 8 22 21" fill="#7180a7"/>
+        </svg>
+        """;
 
     [HttpGet]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
@@ -62,10 +70,16 @@ public sealed class SettingsController(
             return Challenge();
         }
 
+        Response.Headers.CacheControl = "private, no-store";
         try
         {
             var photo = await settingsRepository.GetPhotoAsync(adminId, cancellationToken);
-            if (photo is null || !TryGetImageContentType(photo, out var contentType))
+            if (photo is null)
+            {
+                return File(Encoding.UTF8.GetBytes(PlaceholderPhoto), "image/svg+xml");
+            }
+
+            if (!TryGetImageContentType(photo, out var contentType))
             {
                 return NotFound();
             }
@@ -97,6 +111,11 @@ public sealed class SettingsController(
         model.FullName = model.FullName.Trim();
         model.Username = model.Username.Trim();
         model.Email = model.Email.Trim();
+        model.StudentId = Normalize(model.StudentId);
+        model.Course = Normalize(model.Course);
+        model.YearLevel = Normalize(model.YearLevel);
+        model.Position = Normalize(model.Position);
+        SetProfileAccessFields(model);
 
         byte[]? photo = null;
         if (model.Photo is { Length: > 0 } upload)
@@ -166,6 +185,17 @@ public sealed class SettingsController(
         ViewData["Description"] = "Manage your administrator profile and password.";
         ViewData["ActiveSection"] = "settings";
     }
+
+    private void SetProfileAccessFields(SettingsViewModel model)
+    {
+        model.Role = User.IsInRole("SuperAdmin") ? "Super Admin" : "Division Admin";
+        model.DivisionName = User.IsInRole("SuperAdmin")
+            ? "All divisions"
+            : User.FindFirstValue("division_name");
+    }
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private bool TryGetAdminId(out int adminId) =>
         int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out adminId);

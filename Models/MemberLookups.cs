@@ -14,5 +14,5 @@ public static class MemberLookups
 
     public static IReadOnlyList<string> Statuses { get; } = ["Active", "Inactive"];
 
-    public static IReadOnlyList<string> ActivityStatuses { get; } = ["Upcoming", "Pending", "Completed"];
+    public static IReadOnlyList<string> ActivityStatuses { get; } = ["Upcoming", "Completed"];
 }

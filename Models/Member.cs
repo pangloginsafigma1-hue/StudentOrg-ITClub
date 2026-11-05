@@ -6,6 +6,8 @@ public sealed class Member
 
     public string StudentName { get; init; } = string.Empty;
 
+    public string? Email { get; init; }
+
     public string Course { get; init; } = string.Empty;
 
     public string YearLevel { get; init; } = string.Empty;

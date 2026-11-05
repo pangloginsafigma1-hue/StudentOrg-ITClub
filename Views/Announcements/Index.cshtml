@@ -18,8 +18,11 @@
 }
 <section class="page-card">
     <div class="members-toolbar">
-        <div><h2>Published Announcements</h2><p>Members see organization-wide and division announcements in their portal.</p></div>
-        <a class="btn btn-primary" asp-action="Create">Create a post</a>
+        <div><h2>Published Announcements</h2><p> </p></div>
+        @if (isSuperAdmin)
+        {
+            <a class="btn btn-primary" asp-action="Create">Create a post</a>
+        }
     </div>
     @if (Model.Count == 0)
     {

@@ -38,7 +38,7 @@
                 <input asp-for="FlowToken" type="hidden" />
                 <div class="form-field">
                     <label asp-for="Email"></label>
-                    <input asp-for="Email" class="form-control" type="email" maxlength="100" autocomplete="email" required />
+                    <input asp-for="Email" class="form-control" type="email" maxlength="254" autocomplete="email" required />
                     <span asp-validation-for="Email" class="field-error"></span>
                 </div>
                 <button class="btn btn-primary login-submit" type="submit">Send Verification Code</button>

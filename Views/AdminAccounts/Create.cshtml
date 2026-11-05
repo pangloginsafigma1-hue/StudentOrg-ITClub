@@ -1,0 +1,27 @@
+<section class="page-card admin-create-choice">
+    <div class="section-heading">
+        <div>
+            <h2>Add Administrator</h2>
+            <p>Choose whether to use an existing active member or enter a new administrator's details.</p>
+        </div>
+    </div>
+    <div class="admin-create-options">
+        <a class="report-card page-card" asp-controller="AdminAccounts" asp-action="SelectMember">
+            <span>
+                <strong>Select from Members</strong>
+                <small>Search active members, including Division Heads, and use their existing details.</small>
+            </span>
+            <span class="report-arrow" aria-hidden="true">→</span>
+        </a>
+        <a class="report-card page-card" asp-controller="AdminAccounts" asp-action="CreateNew">
+            <span>
+                <strong>Add New Admin</strong>
+                <small>Create an administrator using manually entered details.</small>
+            </span>
+            <span class="report-arrow" aria-hidden="true">→</span>
+        </a>
+    </div>
+    <div class="settings-actions">
+        <a class="btn btn-outline-primary" asp-controller="AdminAccounts" asp-action="Index">Cancel</a>
+    </div>
+</section>

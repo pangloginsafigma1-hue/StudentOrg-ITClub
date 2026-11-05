@@ -49,18 +49,6 @@
     </a>
 
     <a class="stat-card page-card dashboard-metric-card dashboard-quicklink"
-       href="@Url.Action("Index", "Members")#pendingJoinRequests"
-       aria-label="Review new member join requests">
-        <span class="stat-accent" aria-hidden="true"></span>
-        <div class="stat-icon"><img src="~/images/ic_membership.png" alt="" /></div>
-        <div class="stat-content">
-            <span class="stat-label">New members · 30 days</span>
-            <strong class="stat-number">@(Model.NewMemberCount30Days?.ToString("N0") ?? "—")</strong>
-        </div>
-        <span class="metric-note">Recent registrations</span>
-    </a>
-
-    <a class="stat-card page-card dashboard-metric-card dashboard-quicklink"
        asp-controller="Activities"
        asp-action="Index"
        aria-label="Manage activities">
@@ -230,7 +218,7 @@
                             <td>@activity.ActivityDate.ToString("MMM dd, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM dd, yyyy h:mm tt")</td>
                             <td>@activity.ActivityName</td>
                             <td>@activity.Location</td>
-                            <td>@(activity.DivisionName ?? "Unassigned")</td>
+                            <td>@(activity.DivisionName ?? "All Divisions")</td>
                             <td>@activity.Status</td>
                         </tr>
                     }

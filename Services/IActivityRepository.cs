@@ -8,6 +8,8 @@ public interface IActivityRepository
 
     Task<Activity?> GetByIdAsync(int activityId, int? divisionId, CancellationToken cancellationToken);
 
+    Task<bool> IsNameInUseAsync(string activityName, int exceptActivityId, CancellationToken cancellationToken);
+
     Task SaveAsync(Activity activity, int? divisionId, CancellationToken cancellationToken);
 
     Task DeleteAsync(int activityId, int? divisionId, CancellationToken cancellationToken);

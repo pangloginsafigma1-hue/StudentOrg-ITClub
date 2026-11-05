@@ -16,19 +16,25 @@ The migration follows the guide's naming conventions (PascalCase for types and m
 
 ## Database setup
 
-The migrated app uses the existing tables (`admins`, `members`, `activities`, and `attendance`) in `ITClubOrgDB`. The initial migration copied the source records there without modifying `somams_db`.
+The app requires the `admins`, `members`, `activities`, and `attendance` tables in `ITClubOrgDB`. For a fresh or empty database, start with [`Database/01_core_schema.sql`](./Database/01_core_schema.sql). It creates only missing tables and does not import legacy records; restore or import your data separately before applying the updates. Existing tables and rows are left unchanged by this script.
 
-To enable division-scoped access, run [`Database/04_divisions.sql`](./Database/04_divisions.sql) against `ITClubOrgDB` before starting the updated app. If you ran an earlier version of this migration, run the current file again; it is idempotent and adds newer account columns such as `admins.is_active`. This additive migration targets **only** `ITClubOrgDB`; it does not read or modify `somams_db`. Existing member and activity records remain unassigned and visible only to super admins until assigned to a division in the app.
+Run the schema scripts in this order: `01_core_schema.sql`, then `04_divisions.sql` through `17_admin_account_to_member.sql` in numeric order. Each script selects `ITClubOrgDB`; `01_core_schema.sql` creates that database if needed. Do not start with `05` or run data updates such as `06` and `07` before their base tables exist. The additive migrations target **only** `ITClubOrgDB`; they do not read or modify `somams_db`.
 
-To enable the member portal, also run [`Database/05_member_portal.sql`](./Database/05_member_portal.sql), followed by [`Database/08_registration_email.sql`](./Database/08_registration_email.sql), [`Database/09_member_portal_email.sql`](./Database/09_member_portal_email.sql), [`Database/10_activity_second_division.sql`](./Database/10_activity_second_division.sql), and [`Database/11_announcement_second_division.sql`](./Database/11_announcement_second_division.sql) when upgrading an existing database. Activities and announcements may target one or two divisions; members in either selected division can see them. New registrations use a two-step form, require an email address, and accept passwords from 8 to 72 characters. After approval, SOMAMS sends an email notification to the applicant using the configured SMTP settings; if delivery fails, the approval remains in effect and the administrator is told to contact the member. Older pending registrations without an email can still be approved, but must be notified manually. Approved portal accounts retain the registration email for member password recovery. Approval creates the member record if it does not exist, or links the portal account to an existing matching record. If the Student ID already exists but the submitted name, course, year, or division differs, an administrator must reconcile the member record before approval. Division admins can review registrations and announcements only for their assigned division.
+The division migration (`04`) adds account roles and division ownership; existing member and activity records remain unassigned until assigned in the app. The member portal migrations (`05`, `08`, and `09`) add self-registration and email-based account recovery. New registrations use a two-step form, require an email address, and accept passwords from 8 to 72 characters. After approval, SOMAMS sends an email notification to the applicant using the configured SMTP settings; if delivery fails, the approval remains in effect and the administrator is told to contact the member. Older pending registrations without an email can still be approved, but must be notified manually. Approved portal accounts retain the registration email for member password recovery. Approval creates the member record if it does not exist, or links the portal account to an existing matching record. If the Student ID already exists but the submitted name, course, year, or division differs, an administrator must reconcile the member record before approval. Division admins can review registrations and announcements only for their assigned division.
 Run [`Database/12_history_and_activity_registration.sql`](./Database/12_history_and_activity_registration.sql) after the portal migrations to add member status history, administrator position/term history, and activity registration/participation tracking. Members can register or unregister from eligible activities in the portal; authorized administrators can review registrations and record participation.
 Run [`Database/13_activity_participation_details.sql`](./Database/13_activity_participation_details.sql) afterward to add participation type, optional notes, and administrator audit timestamps to registration records. Super admins and division admins scoped to the activity can update these details. Run [`Database/14_activity_registration_open.sql`](./Database/14_activity_registration_open.sql) to add the per-activity member-registration switch; existing activities remain open by default.
 
 Configure `Email:SmtpHost`, `Email:SmtpPort`, `Email:SmtpUsername`, `Email:SmtpPassword`, `Email:FromAddress`, and `Email:EnableSsl` through user secrets or deployment environment variables to send approval notifications and password-reset codes. Do not commit SMTP credentials.
 
-After `05_member_portal.sql`, run [`Database/06_member_data_cleanup.sql`](./Database/06_member_data_cleanup.sql) to convert existing member and registration courses to BSIT, map legacy President positions to Division Head, and normalize other member positions to Member. New membership forms offer only Division Head and Member; division administrators can add Members but cannot assign the Division Head position.
+Migration `06` converts existing member and registration courses to BSIT, maps legacy President positions to Division Head, and normalizes other member positions to Member. New membership forms offer only Division Head and Member; division administrators can add Members but cannot assign the Division Head position.
 
-Run [`Database/07_activity_time_range.sql`](./Database/07_activity_time_range.sql) to add activity start/end timestamps. Existing activities are backfilled from their current `activity_date` with a one-hour interval beginning at midnight; update their times in Activities if the original event times are known. Super admins can create organization-wide or division-specific activities and edit recorded attendance across divisions. Once attendance is first saved, the activity status is set to **Completed**.
+Migration `07` adds activity start/end timestamps. Existing activities are backfilled from their current `activity_date` with a one-hour interval beginning at midnight; update their times in Activities if the original event times are known. Super admins can create organization-wide or division-specific activities and edit recorded attendance across divisions. Once attendance is first saved, the activity status is set to **Completed**.
+
+Migration `15` adds an optional email address to member records and optional student ID, course, year level, position, and date-joined profile fields to administrator accounts. Administrator email addresses are expanded to 254 characters to match member email addresses. Membership forms and member exports include email; editing a member also synchronizes the email on an existing portal account, and password recovery uses the member email as a fallback.
+
+Migration `16` creates the optional administrator reserve-candidate roster. Reserve nominations do not create or enable administrator accounts. Attendance can be recorded only at or after the activity start time; activity selection is shown in a paginated table.
+
+Migration `17` allows administrator accounts to be removed while preserving member requests and announcements. User Roles limits the system to two Super Admin accounts; changing an administrator's role to Member creates or updates their active member record and removes their administrator login.
 
 The member portal exposes a member's own record and attendance, upcoming organization-wide and own-division activities, and published announcements. Administrators create posts from **Announcements**; super admins can target all members or an individual division. The admin **Profile** page manages the signed-in administrator's own account. Member request tables are retained for existing data, but the Member Inbox and member request/correction surfaces are no longer available.
 
@@ -56,8 +62,8 @@ Requirements: .NET 10 SDK and MySQL Server 8.
 
    ```powershell
    dotnet user-secrets init
-   dotnet user-secrets set "ConnectionStrings:SOMAMS" "Server=localhost;Port=3306;Database=ITClubOrgDB;User ID=root;Password=mich09252005!"
-   ```
+   dotnet user-secrets set "ConnectionStrings:SOMAMS" "Server=localhost;Port=3306;Database=ITClubOrgDB;User ID=root;Password=mich09252005!" Flodes@111023
+   ```root@127.0.0.1:3306
 
 2. If the `admins` table is empty, optionally configure the initial administrator. The account is created only once; use a unique password of at least 12 characters:
 
@@ -67,7 +73,10 @@ Requirements: .NET 10 SDK and MySQL Server 8.
    dotnet user-secrets set "BootstrapAdmin:Email" "YOUR_EMAIL"
    dotnet user-secrets set "BootstrapAdmin:Password" "YOUR_UNIQUE_PASSWORD"
    ```
-
+dotnet user-secrets set "BootstrapAdmin:James Davis" "Organization Administrator"
+dotnet user-secrets set "BootstrapAdmin:Username" "admin"
+dotnet user-secrets set "BootstrapAdmin:Email" "davis11jamesmichael@gmail.com"
+dotnet user-secrets set "BootstrapAdmin:Password" "jamesadmin123"
 3. Run the web app:
 
    ```powershell

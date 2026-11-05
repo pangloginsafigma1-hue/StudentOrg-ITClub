@@ -6,7 +6,9 @@ public sealed class UserRolesViewModel
 {
     public IReadOnlyList<AdminAccountListItem> AdministratorAccounts { get; init; } = [];
 
-    public IReadOnlyList<MemberPortalAccountListItem> MemberAccounts { get; init; } = [];
+    public IReadOnlyList<AdminReserveNomination> ReserveNominations { get; init; } = [];
+
+    public bool CanCreateSuperAdmin { get; init; } = true;
 
     public string? DatabaseError { get; init; }
 }
@@ -31,7 +33,7 @@ public sealed class ResetMemberPasswordViewModel
     public string MemberId { get; set; } = string.Empty;
 
     [Required]
-    [StringLength(72, MinimumLength = 12)]
+    [StringLength(72, MinimumLength = 6)]
     public string NewPassword { get; set; } = string.Empty;
 
     [Required]

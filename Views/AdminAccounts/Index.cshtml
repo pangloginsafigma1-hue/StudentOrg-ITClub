@@ -53,13 +53,12 @@
                             <td>@(account.Role == "SuperAdmin" ? "Super Admin" : "Division Admin")</td>
                             <td>@(account.DivisionName ?? "All divisions")</td>
                             <td>
-                                @if (account.CurrentPosition is null)
+                                @if (account.CurrentTermStart is null)
                                 {
                                     <span class="text-muted">No term recorded</span>
                                 }
                                 else
                                 {
-                                    <strong>@account.CurrentPosition</strong>
                                     <small class="d-block text-muted">
                                         @account.CurrentTermStart?.ToString("MMM d, yyyy")
                                         –
@@ -94,7 +93,7 @@
         </div>
         <div class="member-list-footer">
             <strong>Total administrator accounts: @Model.AdministratorAccounts.Count</strong>
-            <span>At least one active super admin must remain enabled.</span>
+            <span>At least one active Super Admin must remain enabled; no more than two Super Admin accounts are allowed.</span>
         </div>
     }
     else if (Model.DatabaseError is null)
@@ -102,6 +101,62 @@
         <p class="empty-state">No administrator accounts were found.</p>
     }
 </section>
+
+@if (Model.DatabaseError is null)
+{
+    <section class="page-card admin-reserve-card" hidden>
+        <div class="members-toolbar">
+            <div>
+                <h2>Reserve Candidates</h2>
+                <p>Optional active-member nominees for future administrator roles. A nomination does not create an account or grant access.</p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table somams-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Role</th>
+                        <th scope="col">Current reserve</th>
+                        <th scope="col">Choose reserve candidate</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var slot in Model.ReserveNominations)
+                    {
+                        <tr>
+                            <td>@slot.SlotName</td>
+                            <td>
+                                @if (slot.MemberId is null)
+                                {
+                                    <span class="text-muted">None selected</span>
+                                }
+                                else
+                                {
+                                    <span>@slot.MemberName (@slot.MemberId)</span>
+                                }
+                            </td>
+                            <td>
+                                <form asp-controller="AdminAccounts" asp-action="SaveReserveCandidate" method="post" class="admin-reserve-form">
+                                    <input type="hidden" name="slotKey" value="@slot.SlotKey" />
+                                    <select class="form-select" name="memberId" aria-label="Reserve candidate for @slot.SlotName">
+                                        <option value="">No reserve candidate</option>
+                                        @foreach (var candidate in slot.CandidateOptions)
+                                        {
+                                            <option value="@candidate.MemberId" selected="@(slot.MemberId == candidate.MemberId ? "selected" : null)">
+                                                @candidate.FullName (@candidate.MemberId)@(candidate.DivisionName is not null ? $" — {candidate.DivisionName}" : "")
+                                            </option>
+                                        }
+                                    </select>
+                                    <button class="btn btn-sm btn-primary" type="submit">Save</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
 
 @section Scripts {
     <script src="~/js/site.js" asp-append-version="true"></script>
@@ -127,7 +182,7 @@
                         <input class="form-control" name="termStart" id="adminTermStart" type="date" required />
                     </div>
                     <div class="form-field">
-                        <label for="adminTermEnd">End date <small>(optional)</small></label>
+                        <label for="adminTermEnd">End date <small> </small></label>
                         <input class="form-control" name="termEnd" id="adminTermEnd" type="date" />
                     </div>
                 </div>
@@ -139,95 +194,3 @@
         </div>
     </div>
 </div>
-
-<section class="page-card admin-account-card">
-    <div class="members-toolbar">
-        <div>
-            <h2>Member Accounts</h2>
-            <p>Manage approved member portal access and passwords.</p>
-        </div>
-    </div>
-    @if (Model.MemberAccounts.Count == 0)
-    {
-        <p class="empty-state">No approved member portal accounts were found.</p>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table somams-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Name</th>
-                        <th scope="col">Student ID</th>
-                        <th scope="col">Role</th>
-                        <th scope="col">Division</th>
-                        <th scope="col">Membership</th>
-                        <th scope="col">Portal Access</th>
-                        <th scope="col" class="actions-heading">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var account in Model.MemberAccounts)
-                    {
-                        <tr>
-                            <td>@account.FullName</td>
-                            <td>@account.MemberId</td>
-                            <td>Member</td>
-                            <td>@(account.DivisionName ?? "Unassigned")</td>
-                            <td>@account.MembershipStatus</td>
-                            <td>
-                                <span class="status-badge @(account.IsPortalAccountActive ? "status-active" : "status-inactive")">
-                                    @(account.IsPortalAccountActive ? "Enabled" : "Disabled")
-                                </span>
-                            </td>
-                            <td class="actions-cell account-actions">
-                                <form asp-controller="AdminAccounts"
-                                      asp-action="SetMemberAccountStatus"
-                                      method="post"
-                                      class="d-inline">
-                                    <input type="hidden" name="memberId" value="@account.MemberId" />
-                                    <input type="hidden" name="isActive" value="@(!account.IsPortalAccountActive)" />
-                                    <button class="btn @(account.IsPortalAccountActive ? "btn-account-disable" : "btn-account-enable")" type="submit">
-                                        @(account.IsPortalAccountActive ? "Disable" : "Enable")
-                                    </button>
-                                </form>
-                                <details class="member-password-reset">
-                                    <summary class="btn btn-account-reset">Reset password</summary>
-                                    <form asp-controller="AdminAccounts"
-                                          asp-action="ResetMemberPassword"
-                                          method="post"
-                                          class="member-password-reset-form">
-                                        <input type="hidden" name="MemberId" value="@account.MemberId" />
-                                        <label for="newPassword-@account.MemberId">New password</label>
-                                        <input id="newPassword-@account.MemberId"
-                                               name="NewPassword"
-                                               type="password"
-                                               class="form-control"
-                                               autocomplete="new-password"
-                                               minlength="12"
-                                               maxlength="72"
-                                               required />
-                                        <label for="confirmPassword-@account.MemberId">Confirm password</label>
-                                        <input id="confirmPassword-@account.MemberId"
-                                               name="ConfirmPassword"
-                                               type="password"
-                                               class="form-control"
-                                               autocomplete="new-password"
-                                               minlength="12"
-                                               maxlength="72"
-                                               required />
-                                        <button class="btn btn-primary btn-sm" type="submit">Save password</button>
-                                    </form>
-                                </details>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-        <div class="member-list-footer">
-            <strong>Total member accounts: @Model.MemberAccounts.Count</strong>
-            <span>Member accounts require an Active membership record to sign in.</span>
-        </div>
-    }
-</section>

@@ -12,6 +12,14 @@ public sealed class AttendanceViewModel
 
     public bool CanEditRecordedAttendance { get; init; }
 
+    public int ActivityPage { get; init; } = 1;
+
+    public int ActivityPageCount { get; init; }
+
+    public int ActivityCount { get; init; }
+
+    public string? NotStartedActivityName { get; init; }
+
     public IReadOnlyList<AttendanceMember> Members { get; init; } = [];
 
     public string? DatabaseError { get; init; }

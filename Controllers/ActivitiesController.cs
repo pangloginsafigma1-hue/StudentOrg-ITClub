@@ -73,10 +73,6 @@ public sealed class ActivitiesController(
                 .Distinct()
                 .ToArray();
             form.DivisionId = form.DivisionIds.FirstOrDefault();
-            if (form.DivisionIds.Length > 2)
-            {
-                ModelState.AddModelError(nameof(form.DivisionIds), "Choose no more than two divisions.");
-            }
         }
 
         if (!MemberLookups.ActivityStatuses.Contains(form.Status, StringComparer.Ordinal))
@@ -94,6 +90,30 @@ public sealed class ActivitiesController(
         if (form.ActivityId < 0)
         {
             return BadRequest();
+        }
+        form.ActivityName = form.ActivityName?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(form.ActivityName))
+        {
+            try
+            {
+                if (await activityRepository.IsNameInUseAsync(
+                    form.ActivityName,
+                    form.ActivityId,
+                    cancellationToken))
+                {
+                    ModelState.AddModelError("Form.ActivityName", "An activity with this name already exists.");
+                }
+            }
+            catch (InvalidOperationException exception)
+            {
+                logger.LogError(exception, "Activity name uniqueness could not be checked due to invalid database configuration.");
+                ModelState.AddModelError(string.Empty, exception.Message);
+            }
+            catch (MySqlException exception)
+            {
+                logger.LogError(exception, "Activity name uniqueness could not be checked in MySQL.");
+                ModelState.AddModelError(string.Empty, "The activity name could not be validated. Check the database connection and try again.");
+            }
         }
 
         IReadOnlyList<Division> divisions;
@@ -114,10 +134,17 @@ public sealed class ActivitiesController(
             divisions = [];
         }
 
-        if (form.DivisionId is int selectedDivisionId
-            && !divisions.Any(division => division.DivisionId == selectedDivisionId))
+        if (form.DivisionIds.Any(requestedId =>
+            !divisions.Any(division => division.DivisionId == requestedId)))
         {
-            ModelState.AddModelError(nameof(form.DivisionId), "Choose a valid division.");
+            ModelState.AddModelError(nameof(form.DivisionIds), "Choose valid divisions.");
+        }
+        else if (divisionScope is null
+            && form.DivisionIds.Length == divisions.Count
+            && divisions.Count > 0)
+        {
+            form.DivisionIds = [];
+            form.DivisionId = null;
         }
 
         if (!ModelState.IsValid)
@@ -136,7 +163,7 @@ public sealed class ActivitiesController(
             Description = form.Description?.Trim() ?? string.Empty,
             DivisionId = form.DivisionId,
             DivisionId2 = form.DivisionIds.Skip(1).FirstOrDefault(),
-            IsRegistrationOpen = form.IsRegistrationOpen
+            IsRegistrationOpen = true
         };
 
         try

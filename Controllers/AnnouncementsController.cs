@@ -81,10 +81,6 @@ public sealed class AnnouncementsController(
                 .Where(id => id > 0)
                 .Distinct()
                 .ToArray();
-            if (model.DivisionIds.Length > 2)
-            {
-                ModelState.AddModelError(nameof(model.DivisionIds), "Choose no more than two divisions.");
-            }
         }
 
         IReadOnlyList<Division> divisions;
@@ -97,6 +93,10 @@ public sealed class AnnouncementsController(
                 !divisions.Any(division => division.DivisionId == requestedId)))
             {
                 ModelState.AddModelError(nameof(model.DivisionIds), "Choose valid divisions.");
+            }
+            else if (model.DivisionIds.Length == divisions.Count && divisions.Count > 0)
+            {
+                model.DivisionIds = [];
             }
         }
         catch (InvalidOperationException exception)
@@ -203,7 +203,7 @@ public sealed class AnnouncementsController(
     private void SetPageMetadata()
     {
         ViewData["Title"] = "Announcements";
-        ViewData["Description"] = "Create an announcement for your division or all members.";
+        ViewData["Description"] = "See announcements for your division.";
         ViewData["ActiveSection"] = "announcements";
     }
 }

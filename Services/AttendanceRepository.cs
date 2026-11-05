@@ -72,7 +72,7 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
         return members;
     }
 
-    public async Task<bool> SaveAsync(
+    public async Task<AttendanceSaveResult> SaveAsync(
         int activityId,
         IReadOnlyCollection<string> presentMemberIds,
         int? divisionId,
@@ -85,26 +85,32 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
 
         try
         {
-            var attendanceDone = await LockActivityAsync(
+            var activity = await LockActivityAsync(
                 connection,
                 transaction,
                 activityId,
                 divisionId,
                 cancellationToken);
-            if (attendanceDone is null || attendanceDone.Value && !allowEditRecorded)
+            if (activity is null || activity.AttendanceDone && !allowEditRecorded)
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return false;
+                return AttendanceSaveResult.Unavailable;
             }
 
-            var rosterMemberIds = attendanceDone.Value
+            if (!activity.AttendanceDone && activity.StartAt > DateTime.Now)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                return AttendanceSaveResult.NotStarted;
+            }
+
+            var rosterMemberIds = activity.AttendanceDone
                 ? await GetRecordedMemberIdsAsync(connection, transaction, activityId, cancellationToken)
                 : await GetActiveMemberIdsAsync(connection, transaction, activityId, divisionId, cancellationToken);
             var rosterMemberSet = rosterMemberIds.ToHashSet(StringComparer.Ordinal);
             if (presentMemberIds.Any(memberId => !rosterMemberSet.Contains(memberId)))
             {
                 await transaction.RollbackAsync(cancellationToken);
-                return false;
+                return AttendanceSaveResult.InvalidRoster;
             }
 
             await SaveRosterAsync(
@@ -115,7 +121,7 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
                 presentMemberIds.ToHashSet(StringComparer.Ordinal),
                 cancellationToken);
 
-            if (!attendanceDone.Value && !await MarkActivityCompletedAsync(
+            if (!activity.AttendanceDone && !await MarkActivityCompletedAsync(
                     connection,
                     transaction,
                     activityId,
@@ -125,7 +131,7 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
             }
 
             await transaction.CommitAsync(cancellationToken);
-            return true;
+            return AttendanceSaveResult.Saved;
         }
         catch
         {
@@ -134,7 +140,7 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
         }
     }
 
-    private static async Task<bool?> LockActivityAsync(
+    private static async Task<AttendanceActivityLock?> LockActivityAsync(
         MySqlConnection connection,
         MySqlTransaction transaction,
         int activityId,
@@ -143,24 +149,28 @@ public sealed class AttendanceRepository(MySqlConnectionFactory connectionFactor
     {
         await using var command = new MySqlCommand(
             """
-            SELECT attendance_done
+            SELECT attendance_done, activity_start_at
             FROM activities
             WHERE activity_id = @activityId
-              AND (@divisionId IS NULL OR division_id = @divisionId)
+              AND (@divisionId IS NULL OR division_id = @divisionId OR division_id_2 = @divisionId)
             FOR UPDATE
             """,
             connection,
             transaction);
         command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activityId;
         command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        if (result is null or DBNull)
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
         {
             return null;
         }
 
-        return Convert.ToBoolean(result);
+        return new AttendanceActivityLock(
+            reader.GetBoolean("attendance_done"),
+            reader.GetDateTime("activity_start_at"));
     }
+
+    private sealed record AttendanceActivityLock(bool AttendanceDone, DateTime StartAt);
 
     private static async Task<IReadOnlyList<string>> GetRecordedMemberIdsAsync(
         MySqlConnection connection,

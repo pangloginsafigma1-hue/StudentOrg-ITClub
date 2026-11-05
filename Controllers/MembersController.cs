@@ -43,9 +43,6 @@ public sealed class MembersController(
                 Members = await memberRepository.GetAllAsync(
                     normalizedSearch,
                     UserDivision.GetDivisionId(User),
-                    cancellationToken),
-                PendingRegistrations = await memberPortalRepository.GetPendingRegistrationsAsync(
-                    UserDivision.GetDivisionId(User),
                     cancellationToken)
             };
         }
@@ -69,7 +66,7 @@ public sealed class MembersController(
         }
 
         ViewData["Title"] = "Membership";
-        ViewData["Description"] = "Manage student members and review join requests.";
+        ViewData["Description"] = "Manage student members.";
         ViewData["ActiveSection"] = "membership";
         return View(model);
     }

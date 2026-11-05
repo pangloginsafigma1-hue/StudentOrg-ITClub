@@ -7,7 +7,7 @@ namespace ITClubOrg.Services;
 
 public static class MemberWordExporter
 {
-    private static readonly string[] ColumnHeaders = ["ID", "Student Name", "Course", "Year Level", "Position", "Status"];
+    private static readonly string[] ColumnHeaders = ["ID", "Student Name", "Email", "Division", "Course", "Year Level", "Position", "Status"];
 
     public static byte[] Export(IEnumerable<Member> members)
     {
@@ -65,7 +65,16 @@ public static class MemberWordExporter
         foreach (var member in members)
         {
             table.Append(CreateRow(
-                [member.MemberId, member.StudentName, member.Course, member.YearLevel, member.Position, member.Status],
+                [
+                    member.MemberId,
+                    member.StudentName,
+                    member.Email ?? string.Empty,
+                    member.DivisionName ?? "Unassigned (super admin only)",
+                    member.Course,
+                    member.YearLevel,
+                    member.Position,
+                    member.Status
+                ],
                 header: false,
                 shaded: index++ % 2 == 1));
         }

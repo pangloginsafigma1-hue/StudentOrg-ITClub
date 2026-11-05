@@ -1,0 +1,61 @@
+@model DivisionDropdownViewModel
+@{
+    var divisions = Model.Divisions
+        .OrderBy(division => division.Name switch
+        {
+            "Software" => 0,
+            "Hardware" => 1,
+            "Multimedia & Arts" => 2,
+            _ => 3
+        })
+        .ThenBy(division => division.Name)
+        .ToArray();
+    var selectedIds = Model.SelectedDivisionIds.Count == 0
+        ? divisions.Select(division => division.DivisionId).ToHashSet()
+        : Model.SelectedDivisionIds.ToHashSet();
+    var allSelected = divisions.Length > 0
+        && divisions.All(division => selectedIds.Contains(division.DivisionId));
+    var selectedNames = divisions
+        .Where(division => selectedIds.Contains(division.DivisionId))
+        .Select(division => string.Equals(division.Name, "Multimedia & Arts", StringComparison.OrdinalIgnoreCase)
+            ? "Multi-media and Arts"
+            : division.Name)
+        .ToArray();
+    var label = allSelected
+        ? "All Divisions"
+        : selectedNames.Length == 0
+            ? "No divisions selected"
+            : string.Join(", ", selectedNames);
+}
+<div class="form-field division-filter-field">
+    <span class="form-label">Select Division</span>
+    <details class="division-dropdown" data-division-dropdown>
+        <summary class="division-dropdown-trigger" aria-label="Select Division">
+            <span data-division-label>@label</span>
+            <span class="division-dropdown-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="division-dropdown-menu" role="group" aria-label="Select divisions">
+            <label class="division-check-option">
+                <input type="checkbox" data-all-divisions checked="@(allSelected ? "checked" : null)" />
+                <span>All Divisions</span>
+            </label>
+            @foreach (var division in divisions)
+            {
+                var name = string.Equals(division.Name, "Multimedia & Arts", StringComparison.OrdinalIgnoreCase)
+                    ? "Multi-media and Arts"
+                    : division.Name;
+                <label class="division-check-option">
+                    <input type="checkbox"
+                           name="@Model.InputName"
+                           value="@division.DivisionId"
+                           checked="@(selectedIds.Contains(division.DivisionId) ? "checked" : null)" />
+                    <span>@name</span>
+                </label>
+            }
+        </div>
+    </details>
+    @if (Model.ValidationName is not null)
+    {
+        @Html.ValidationMessage(Model.ValidationName, null, new { @class = "field-error" })
+    }
+</div>

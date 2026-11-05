@@ -17,44 +17,37 @@
 }
 
 <form asp-controller="Reports" asp-action="Index" method="get" class="page-card reports-division-filter">
-    <div class="form-field">
-        <label>Report divisions <small>(choose up to 2)</small></label>
-        @if (Model.CanChooseDivision)
-        {
-        <details class="division-dropdown" data-division-dropdown data-max-selections="2">
-            <summary class="division-dropdown-trigger">
-                <span data-division-label>Select divisions</span>
-                <span class="division-dropdown-chevron" aria-hidden="true"></span>
-            </summary>
-            <div class="division-dropdown-menu" role="group" aria-label="Report divisions">
-                <label class="division-check-option">
-                    <input type="checkbox" name="divisionIds" value="" @(Model.DivisionIds.Count == 0 ? "checked" : null) />
-                    <span>All divisions</span>
-                </label>
-                @foreach (var division in Model.Divisions)
-                {
-                <label class="division-check-option">
-                    <input type="checkbox" name="divisionIds" value="@division.DivisionId" checked="@(Model.DivisionIds.Contains(division.DivisionId) ? "checked" : null)" />
-                    <span>@division.Name</span>
-                </label>
-                }
-            </div>
-        </details>
-        }
-        else
-        {
-            @foreach (var divisionId in Model.DivisionIds) { <input type="hidden" name="divisionIds" value="@divisionId" /> }
-            <span>@User.FindFirst("division_name")?.Value</span>
-        }
-    </div>
     @if (Model.CanChooseDivision)
     {
-        <button class="btn btn-primary" type="submit">Apply division</button>
+        <partial name="_DivisionDropdown" model='new DivisionDropdownViewModel
+        {
+            InputName = "divisionIds",
+            Divisions = Model.Divisions,
+            SelectedDivisionIds = Model.DivisionIds
+        }' />
+    }
+    else
+    {
+        <div class="form-field">
+            <span class="form-label">Select Division</span>
+            @foreach (var divisionId in Model.DivisionIds) { <input type="hidden" name="divisionIds" value="@divisionId" /> }
+            <span class="reports-division-scope">@User.FindFirst("division_name")?.Value</span>
+        </div>
+    }
+    @if (Model.CanChooseDivision)
+    {
+        <div class="reports-division-actions">
+            <button class="btn btn-primary" type="submit">Apply filter</button>
+            @if (Model.DivisionIds.Count > 0)
+            {
+                <a class="btn btn-outline-primary" asp-controller="Reports" asp-action="Index">Show all divisions</a>
+            }
+        </div>
     }
 </form>
 
 <section class="report-grid" aria-label="Available reports">
-    <button class="report-card page-card" type="button" data-bs-toggle="modal" data-bs-target="#membersReportModal">
+    <button class="report-card page-card" type="button" data-bs-toggle="modal" data-bs-target="#organizationMembersReportModal">
         <img src="~/images/ic_members.png" alt="" />
         <span>
             <strong>List of Organization Members</strong>
@@ -134,6 +127,48 @@
                     <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
                     <button class="btn btn-success" type="submit" formaction="@Url.Action("ExportAllMembers", "Reports")">Export All</button>
                     <button class="btn btn-primary" type="submit" formaction="@Url.Action("ExportFilteredMembers", "Reports")">Export Filtered</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="organizationMembersReportModal" tabindex="-1" aria-labelledby="organizationMembersReportModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content report-modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="organizationMembersReportModalTitle">List of Organization Members</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post">
+                @foreach (var divisionId in Model.DivisionIds) { <input type="hidden" name="divisionIds" value="@divisionId" /> }
+                <div class="modal-body">
+                    <p>Export the full organization list or narrow it using the member and position filters.</p>
+                    <div class="form-field">
+                        <label for="organizationMemberId">Member</label>
+                        <select id="organizationMemberId" name="memberId" class="form-select">
+                            <option value="">All members</option>
+                            @foreach (var member in Model.Members)
+                            {
+                                <option value="@member.MemberId">@member.StudentName (@member.MemberId)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label for="organizationMemberPosition">Position</label>
+                        <select id="organizationMemberPosition" name="position" class="form-select">
+                            <option value="">All positions</option>
+                            @foreach (var position in Model.Positions)
+                            {
+                                <option value="@position">@position</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer report-modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-success" type="submit" formaction="@Url.Action("ExportAllMembers", "Reports")">Export All</button>
+                    <button class="btn btn-primary" type="submit" formaction="@Url.Action("ExportFilteredOrganizationMembers", "Reports")">Export Filtered</button>
                 </div>
             </form>
         </div>

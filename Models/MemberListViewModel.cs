@@ -6,7 +6,5 @@ public sealed class MemberListViewModel
 
     public IReadOnlyList<Member> Members { get; init; } = [];
 
-    public IReadOnlyList<MemberRegistrationRequest> PendingRegistrations { get; init; } = [];
-
     public string? DatabaseError { get; init; }
 }

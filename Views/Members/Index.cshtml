@@ -37,6 +37,7 @@
                     <tr>
                         <th scope="col">ID</th>
                         <th scope="col">Student Name</th>
+                        <th scope="col">Email</th>
                         <th scope="col">Division</th>
                         <th scope="col">Course</th>
                         <th scope="col">Year Level</th>
@@ -51,6 +52,7 @@
                         <tr>
                             <td>@member.MemberId</td>
                             <td>@member.StudentName</td>
+                            <td>@(member.Email ?? "—")</td>
                             <td>@(member.DivisionName ?? "Unassigned (super admin only)")</td>
                             <td>@member.Course</td>
                             <td>@member.YearLevel</td>
@@ -58,11 +60,9 @@
                             <td>
                                 <form asp-action="SetStatus" method="post" class="d-flex gap-1">
                                     <input type="hidden" name="memberId" value="@member.MemberId" />
-                                    <select name="status" class="form-select form-select-sm">
+                                    <select name="status" class="form-select form-select-sm member-status-select" aria-label="Status for @member.StudentName" data-member-status-autosave>
                                         @foreach (var status in MemberLookups.Statuses) { <option selected="@(status == member.Status)" value="@status">@status</option> }
                                     </select>
-                                    <input name="reason" class="form-control form-control-sm" placeholder="Reason" aria-label="Status reason" />
-                                    <button class="btn btn-sm btn-outline-primary" type="submit">Save</button>
                                 </form>
                             </td>
                             <td class="actions-cell">
@@ -96,62 +96,6 @@
         <strong>Total members: @Model.Members.Count</strong>
         <span>Use the pencil to edit and the bin to delete a member.</span>
     </div>
-</section>
-
-<section class="page-card" id="pendingJoinRequests">
-    <div class="members-toolbar">
-        <div>
-            <h2>Pending Join Requests</h2>
-            <p>Verify the Student ID and submitted details before approval.</p>
-        </div>
-    </div>
-    @if (Model.PendingRegistrations.Count == 0)
-    {
-        <p class="empty-state">There are no pending join requests for your authorized scope.</p>
-    }
-    else
-    {
-        <div class="table-responsive">
-            <table class="table somams-table">
-                <thead>
-                    <tr>
-                        <th scope="col">Student ID</th>
-                        <th scope="col">Name</th>
-                        <th scope="col">Email</th>
-                        <th scope="col">Course</th>
-                        <th scope="col">Year</th>
-                        <th scope="col">Division</th>
-                        <th scope="col">Submitted</th>
-                        <th scope="col" class="actions-heading">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var request in Model.PendingRegistrations)
-                    {
-                        <tr>
-                            <td>@request.MemberId</td>
-                            <td>@request.StudentName</td>
-                            <td>@(string.IsNullOrWhiteSpace(request.Email) ? "Not provided" : request.Email)</td>
-                            <td>@request.Course</td>
-                            <td>@request.YearLevel</td>
-                            <td>@request.DivisionName</td>
-                            <td>@request.SubmittedAt.ToString("MMM d, yyyy")</td>
-                            <td class="actions-cell">
-                                <form asp-controller="Members" asp-action="ApproveRegistration" method="post" class="d-inline">
-                                    <input type="hidden" name="memberId" value="@request.MemberId" />
-                                    <button class="btn btn-primary btn-sm" type="submit">Approve</button>
-                                </form>
-                                <form asp-controller="Members" asp-action="RejectRegistration" method="post" class="d-inline">
-                                    <input type="hidden" name="memberId" value="@request.MemberId" />
-                                    <button class="btn btn-outline-danger btn-sm" type="submit">Reject</button>
-                                </form>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
-    }
 </section>
 
 <div class="modal fade" id="deleteMemberModal" tabindex="-1" aria-labelledby="deleteMemberModalTitle" aria-hidden="true">

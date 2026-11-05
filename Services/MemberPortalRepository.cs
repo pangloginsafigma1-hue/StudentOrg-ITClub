@@ -115,10 +115,12 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         await connection.OpenAsync(cancellationToken);
         await using var command = new MySqlCommand(
             """
-            SELECT a.member_id, a.email
+            SELECT a.member_id, COALESCE(a.email, m.email) AS email
             FROM member_portal_accounts a
             JOIN members m ON m.member_id = a.member_id
-            WHERE a.email = @email AND a.email IS NOT NULL AND a.is_active = 1 AND m.status = 'Active'
+            WHERE COALESCE(a.email, m.email) = @email
+              AND COALESCE(a.email, m.email) IS NOT NULL
+              AND a.is_active = 1 AND m.status = 'Active'
             LIMIT 1
             """,
             connection);
@@ -550,18 +552,30 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
             await using var insertMember = new MySqlCommand(
                 """
                 INSERT INTO members
-                    (member_id, student_name, course, year_level, position, status, date_joined, division_id)
+                    (member_id, student_name, email, course, year_level, position, status, date_joined, division_id)
                 VALUES
-                    (@memberId, @studentName, @course, @yearLevel, 'Member', 'Active', CURRENT_DATE(), @divisionId)
+                    (@memberId, @studentName, @email, @course, @yearLevel, 'Member', 'Active', CURRENT_DATE(), @divisionId)
                 """,
                 connection,
                 transaction);
             insertMember.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = request.MemberId;
             insertMember.Parameters.Add("@studentName", MySqlDbType.VarChar, 100).Value = request.StudentName;
+            insertMember.Parameters.Add("@email", MySqlDbType.VarChar, 254).Value =
+                (object?)request.Email ?? DBNull.Value;
             insertMember.Parameters.Add("@course", MySqlDbType.VarChar, 50).Value = request.Course;
             insertMember.Parameters.Add("@yearLevel", MySqlDbType.VarChar, 20).Value = request.YearLevel;
             insertMember.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = request.DivisionId;
             await insertMember.ExecuteNonQueryAsync(cancellationToken);
+        }
+        else if (request.Email is not null)
+        {
+            await using var updateMemberEmail = new MySqlCommand(
+                "UPDATE members SET email = @email WHERE member_id = @memberId",
+                connection,
+                transaction);
+            updateMemberEmail.Parameters.Add("@email", MySqlDbType.VarChar, 254).Value = request.Email;
+            updateMemberEmail.Parameters.Add("@memberId", MySqlDbType.VarChar, 20).Value = request.MemberId;
+            await updateMemberEmail.ExecuteNonQueryAsync(cancellationToken);
         }
 
         await using var accountInsert = new MySqlCommand(
@@ -628,16 +642,17 @@ public sealed class MemberPortalRepository(MySqlConnectionFactory connectionFact
         await using var command = new MySqlCommand(
             """
             SELECT a.announcement_id, a.title, a.body, a.created_at, a.division_id, a.division_id_2,
-                   d.name AS division_name, d2.name AS division_name_2, publisher.full_name AS publisher_name,
+                   d.name AS division_name, d2.name AS division_name_2,
+                   COALESCE(publisher.full_name, 'Former administrator') AS publisher_name,
                    CASE publisher.role
-                       WHEN 'SuperAdmin' THEN 'Super Admin'
+                       WHEN 'SuperAdmin' THEN 'President'
                        WHEN 'DivisionAdmin' THEN 'Division Head'
-                       ELSE publisher.role
+                       ELSE COALESCE(publisher.role, 'Former administrator')
                    END AS publisher_position
             FROM announcements a
             LEFT JOIN divisions d ON d.division_id = a.division_id
             LEFT JOIN divisions d2 ON d2.division_id = a.division_id_2
-            JOIN admins publisher ON publisher.admin_id = a.published_by
+            LEFT JOIN admins publisher ON publisher.admin_id = a.published_by
             WHERE @includeAllDivisions = 1 OR a.division_id IS NULL
                OR a.division_id = @divisionId OR a.division_id_2 = @divisionId
             ORDER BY a.created_at DESC

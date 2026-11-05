@@ -11,6 +11,7 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
         await connection.OpenAsync(cancellationToken);
 
         var today = DateTime.Today;
+        var currentTime = DateTime.Now;
         var currentMonth = new DateTime(today.Year, today.Month, 1);
         var trendStart = currentMonth.AddMonths(-11);
         var trendEnd = currentMonth.AddMonths(1);
@@ -36,13 +37,13 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
             connection,
             """
             SELECT COUNT(*) FROM activities
-            WHERE status IN ('Upcoming', 'Pending')
-              AND activity_start_at >= CURRENT_TIMESTAMP()
+            WHERE activity_start_at >= @currentTime
               AND (@divisionId IS NULL OR division_id = @divisionId OR division_id_2 = @divisionId)
             """,
             divisionId,
             null,
-            cancellationToken);
+            cancellationToken,
+            currentTime);
         var recentMemberCount = await GetCountAsync(
             connection,
             """
@@ -77,11 +78,13 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
                 connection,
                 divisionId,
                 upcoming: true,
+                currentTime,
                 cancellationToken),
             RecentActivities = await GetActivitiesAsync(
                 connection,
                 divisionId,
                 upcoming: false,
+                currentTime,
                 cancellationToken),
             RecentMembers = await GetRecentMembersAsync(connection, divisionId, cancellationToken),
             MonthlyTrend = await GetMonthlyTrendAsync(
@@ -98,13 +101,18 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
         string query,
         int? divisionId,
         DateTime? sinceDate,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        DateTime? currentTime = null)
     {
         await using var command = new MySqlCommand(query, connection);
         command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
         if (sinceDate.HasValue)
         {
             command.Parameters.Add("@sinceDate", MySqlDbType.Date).Value = sinceDate.Value.Date;
+        }
+        if (currentTime.HasValue)
+        {
+            command.Parameters.Add("@currentTime", MySqlDbType.DateTime).Value = currentTime.Value;
         }
 
         var result = await command.ExecuteScalarAsync(cancellationToken);
@@ -115,11 +123,12 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
         MySqlConnection connection,
         int? divisionId,
         bool upcoming,
+        DateTime currentTime,
         CancellationToken cancellationToken)
     {
         var dateFilter = upcoming
-            ? "AND activity_start_at >= CURRENT_TIMESTAMP() AND status IN ('Upcoming', 'Pending')"
-            : "AND activity_start_at < CURRENT_TIMESTAMP()";
+            ? "AND activity_start_at >= @currentTime"
+            : "AND activity_start_at < @currentTime";
         var order = upcoming ? "ASC" : "DESC";
         await using var command = new MySqlCommand(
             $"""
@@ -133,6 +142,7 @@ public sealed class DashboardRepository(MySqlConnectionFactory connectionFactory
             """,
             connection);
         command.Parameters.Add("@divisionId", MySqlDbType.Int32).Value = (object?)divisionId ?? DBNull.Value;
+        command.Parameters.Add("@currentTime", MySqlDbType.DateTime).Value = currentTime;
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
         var activities = new List<DashboardActivity>();

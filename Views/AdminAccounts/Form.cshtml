@@ -10,14 +10,84 @@
             <p>Only the super admin can manage administrator access.</p>
         </div>
     </div>
-    <form asp-controller="AdminAccounts" asp-action="Save" method="post">
+    <form asp-controller="AdminAccounts" asp-action="Save" method="post" id="adminAccountForm" data-admin-account-form>
         <input asp-for="AdminId" type="hidden" />
+        @if (Model.SourceMemberId is not null)
+        {
+            <input asp-for="SourceMemberId" type="hidden" />
+        }
         <div asp-validation-summary="ModelOnly" class="alert alert-danger validation-summary-errors" role="alert"></div>
+        @if (Model.SourceMemberId is not null)
+        {
+            <p class="settings-hint">The member's name and division are prefilled. Confirm their email, then set a separate administrator username and temporary password.</p>
+        }
         <div class="settings-fields">
             <div class="form-field">
                 <label asp-for="FullName"></label>
-                <input asp-for="FullName" class="form-control" autocomplete="name" />
+                <input asp-for="FullName" class="form-control" autocomplete="name"
+                       readonly="@(Model.SourceMemberId is not null ? "readonly" : null)" />
                 <span asp-validation-for="FullName" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="StudentId"></label>
+                <input asp-for="StudentId" class="form-control" maxlength="20"
+                       readonly="@(Model.SourceMemberId is not null ? "readonly" : null)" />
+                <span asp-validation-for="StudentId" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="Course"></label>
+                @if (Model.SourceMemberId is not null)
+                {
+                    <input asp-for="Course" type="hidden" />
+                    <span class="form-control-plaintext">@Model.Course</span>
+                }
+                else
+                {
+                    <select asp-for="Course" class="form-select">
+                        <option value="">Select course</option>
+                        @foreach (var course in Model.Courses)
+                        {
+                            <option value="@course">@course</option>
+                        }
+                    </select>
+                }
+                <span asp-validation-for="Course" class="field-error"></span>
+            </div>
+            <div class="form-field">
+                <label asp-for="YearLevel"></label>
+                @if (Model.SourceMemberId is not null)
+                {
+                    <input asp-for="YearLevel" type="hidden" />
+                    <span class="form-control-plaintext">@Model.YearLevel</span>
+                }
+                else
+                {
+                    <select asp-for="YearLevel" class="form-select">
+                        <option value="">Select year level</option>
+                        @foreach (var yearLevel in Model.YearLevels)
+                        {
+                            <option value="@yearLevel">@yearLevel</option>
+                        }
+                    </select>
+                }
+                <span asp-validation-for="YearLevel" class="field-error"></span>
+            </div>
+            <div class="form-field" data-admin-position-field>
+                <label asp-for="Position"></label>
+                <span class="form-control-plaintext" data-admin-position-label>
+                    @(Model.Role switch
+                    {
+                        "SuperAdmin" => "President",
+                        "Member" => "Member",
+                        _ => "Division Head"
+                    })
+                </span>
+            </div>
+            <div class="form-field">
+                <label asp-for="DateJoined"></label>
+                <input asp-for="DateJoined" class="form-control" type="date"
+                       readonly="@(Model.SourceMemberId is not null ? "readonly" : null)" />
+                <span asp-validation-for="DateJoined" class="field-error"></span>
             </div>
             <div class="form-field">
                 <label asp-for="Username"></label>
@@ -31,26 +101,71 @@
             </div>
             <div class="form-field">
                 <label asp-for="Role"></label>
-                <select asp-for="Role" class="form-select" data-admin-role>
-                    <option value="DivisionAdmin">Division Admin</option>
-                    <option value="SuperAdmin">Super Admin</option>
-                </select>
-                <span asp-validation-for="Role" class="field-error"></span>
-            </div>
-            <div class="form-field" data-admin-division-field>
-                <label asp-for="DivisionId"></label>
-                <select asp-for="DivisionId" class="form-select">
-                    <option value="">Choose a division</option>
-                    @foreach (var division in Model.Divisions)
+                @if (Model.SourceMemberId is not null)
+                {
+                    <input asp-for="Role" type="hidden" />
+                    <span class="form-control-plaintext">@(Model.Role == "SuperAdmin" ? "Super Admin" : "Division Admin")</span>
+                }
+                else
+                {
+                    <select asp-for="Role" class="form-select" data-admin-role>
+                        <option value="DivisionAdmin">Division Admin</option>
+                        @if (Model.CanSelectSuperAdmin || Model.Role == "SuperAdmin")
+                        {
+                            <option value="SuperAdmin">Super Admin</option>
+                        }
+                        else
+                        {
+                            <option value="SuperAdmin" disabled>Super Admin (limit reached)</option>
+                        }
+                        @if (Model.IsEdit)
+                        {
+                            <option value="Member">Member (remove admin access)</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Role" class="field-error"></span>
+                    @if (!Model.CanSelectSuperAdmin && Model.Role != "SuperAdmin")
                     {
-                        <option value="@division.DivisionId">@division.Name</option>
+                        <small class="field-hint">The maximum of two Super Admin accounts has been reached.</small>
                     }
-                </select>
-                <span asp-validation-for="DivisionId" class="field-error"></span>
+                    @if (Model.IsEdit)
+                    {
+                        <small class="field-hint" data-admin-member-warning hidden>
+                            Saving as Member creates or updates an Active member record and permanently removes this administrator login.
+                        </small>
+                    }
+                }
+            </div>
+            <div class="form-field" data-admin-division-field
+                 hidden="@(Model.Role != "DivisionAdmin" ? "hidden" : null)">
+                <label asp-for="DivisionId"></label>
+                @if (Model.SourceMemberId is not null)
+                {
+                    <input asp-for="DivisionId" type="hidden" />
+                    <span class="form-control-plaintext">
+                        @(Model.Role == "SuperAdmin"
+                            ? "No division"
+                            : Model.Divisions.FirstOrDefault(division => division.DivisionId == Model.DivisionId)?.Name
+                                ?? "Division assignment is no longer available")
+                    </span>
+                    <span asp-validation-for="DivisionId" class="field-error"></span>
+                }
+                else
+                {
+                    <select asp-for="DivisionId" class="form-select">
+                        <option value="">Choose a division</option>
+                        @foreach (var division in Model.Divisions)
+                        {
+                            <option value="@division.DivisionId">@division.Name</option>
+                        }
+                    </select>
+                    <small class="field-hint">Each division can have one Division Admin. Divisions with an existing administrator are not available.</small>
+                    <span asp-validation-for="DivisionId" class="field-error"></span>
+                }
             </div>
             @if (Model.IsEdit)
             {
-                <div class="form-field">
+                <div class="form-field" data-admin-enabled-field>
                     <label asp-for="IsActive"></label>
                     <div class="form-check">
                         <input asp-for="IsActive" class="form-check-input" />
@@ -59,27 +174,71 @@
                     <span class="field-hint">Disabled accounts cannot sign in. Disabling or changing your own access will end your current session.</span>
                 </div>
             }
-            <hr />
-            <h3>@(Model.IsEdit ? "Reset Password (optional)" : "Set Temporary Password")</h3>
-            <p class="settings-hint">Use at least 12 characters. Passwords are stored as BCrypt hashes.</p>
-            <div class="form-field">
-                <label asp-for="Password"></label>
-                <input asp-for="Password" class="form-control" autocomplete="new-password"
-                       placeholder="@(Model.IsEdit ? "Leave blank to keep current password" : null)" />
-                <span asp-validation-for="Password" class="field-error"></span>
-            </div>
-            <div class="form-field">
-                <label asp-for="ConfirmPassword"></label>
-                <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
-                <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+            <div data-admin-password-fields hidden="@(Model.Role == "Member" ? "hidden" : null)">
+                <hr />
+                <h3>@(Model.IsEdit ? "Reset Password (optional)" : "Set Temporary Password")</h3>
+                <p class="settings-hint">Use at least 6 characters.</p>
+                <div class="form-field">
+                    <label asp-for="Password"></label>
+                    <input asp-for="Password" class="form-control" autocomplete="new-password"
+                           placeholder="@(Model.IsEdit ? "Leave blank to keep current password" : null)" />
+                    <span asp-validation-for="Password" class="field-error"></span>
+                </div>
+                <div class="form-field">
+                    <label asp-for="ConfirmPassword"></label>
+                    <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+                </div>
             </div>
         </div>
         <div class="settings-actions">
-            <a class="btn btn-outline-primary" asp-controller="AdminAccounts" asp-action="Index">Cancel</a>
-            <button class="btn btn-primary" type="submit">Save Account</button>
+            @if (Model.SourceMemberId is not null)
+            {
+                <a class="btn btn-outline-primary" asp-controller="AdminAccounts" asp-action="SelectMember">Back to Members</a>
+            }
+            else
+            {
+                <a class="btn btn-outline-primary" asp-controller="AdminAccounts" asp-action="Index">Cancel</a>
+            }
+            <button class="btn btn-primary" type="submit" data-admin-save-button>
+                @(Model.Role == "Member" ? "Save as Member" : "Save Account")
+            </button>
         </div>
     </form>
 </section>
+
+@if (Model.IsEdit)
+{
+    <div class="modal fade" id="adminMemberConfirmModal" tabindex="-1"
+         aria-labelledby="adminMemberConfirmModalTitle" aria-describedby="adminMemberConfirmModalDescription"
+         aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content logout-modal admin-conversion-modal">
+                <div class="modal-header">
+                    <h2 class="modal-title" id="adminMemberConfirmModalTitle">Save as Member?</h2>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="adminMemberConfirmModalDescription">
+                        You are changing <strong>@Model.FullName</strong> from an administrator to a member.
+                    </p>
+                    <div class="admin-conversion-warning" role="note">
+                        <strong>This action removes administrator access.</strong>
+                        <ul>
+                            <li>The member record will be created or updated with Active status.</li>
+                            <li>The administrator login will be permanently removed.</li>
+                        </ul>
+                    </div>
+                    <p class="admin-conversion-prompt">Do you want to continue?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" data-admin-member-confirm>Yes, Save as Member</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @section Scripts {
     <script src="~/js/site.js" asp-append-version="true"></script>

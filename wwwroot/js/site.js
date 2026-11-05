@@ -1,43 +1,31 @@
 document.querySelectorAll("[data-division-dropdown]").forEach((dropdown) => {
-    const allInput = dropdown.querySelector('input[type="checkbox"][value=""]');
-    const divisionInputs = [...dropdown.querySelectorAll('input[type="checkbox"]:not([value=""])')];
+    const allInput = dropdown.querySelector('input[type="checkbox"][data-all-divisions]');
+    const divisionInputs = [...dropdown.querySelectorAll('input[type="checkbox"][name]')];
     const label = dropdown.querySelector("[data-division-label]");
-    const maxSelections = Number(dropdown.dataset.maxSelections || 2);
 
     const updateLabel = () => {
         const selected = divisionInputs
             .filter((input) => input.checked)
             .map((input) => input.closest("label")?.querySelector("span")?.textContent?.trim())
             .filter(Boolean);
+        const allSelected = divisionInputs.length > 0 && selected.length === divisionInputs.length;
+        if (allInput instanceof HTMLInputElement) {
+            allInput.checked = allSelected;
+        }
         if (label) {
-            label.textContent = selected.length === 0
-                ? "All divisions"
-                : selected.length === 1
-                    ? selected[0]
-                    : `${selected.length} divisions selected`;
+            label.textContent = allSelected
+                ? "All Divisions"
+                : selected.length === 0
+                    ? "No divisions selected"
+                    : selected.join(", ");
         }
     };
 
     allInput?.addEventListener("change", () => {
-        if (allInput.checked) {
-            divisionInputs.forEach((input) => input.checked = false);
-        }
+        divisionInputs.forEach((input) => input.checked = allInput.checked);
         updateLabel();
     });
-    divisionInputs.forEach((input) => input.addEventListener("change", () => {
-        const selected = divisionInputs.filter((item) => item.checked);
-        if (selected.length > maxSelections) {
-            input.checked = false;
-            return;
-        }
-        if (input.checked && allInput) {
-            allInput.checked = false;
-        }
-        if (!selected.length && allInput) {
-            allInput.checked = true;
-        }
-        updateLabel();
-    }));
+    divisionInputs.forEach((input) => input.addEventListener("change", updateLabel));
     updateLabel();
 });
 
@@ -53,6 +41,12 @@ document.querySelectorAll("[data-password-toggle]").forEach((button) => {
         button.setAttribute("aria-pressed", String(!isVisible));
         button.setAttribute("aria-label", isVisible ? "Show password" : "Hide password");
     });
+});
+
+document.querySelectorAll("[data-member-status-autosave]").forEach((select) => {
+    if (select instanceof HTMLSelectElement) {
+        select.addEventListener("change", () => select.form?.requestSubmit());
+    }
 });
 
 document.querySelectorAll("[data-portal-transition]").forEach((link) => {
@@ -82,30 +76,6 @@ document.querySelectorAll("[data-student-id='true']").forEach((input) => {
         }
     });
 });
-
-const divisionChecks = document.querySelectorAll("input[name='divisionIds']");
-if (divisionChecks.length > 0) {
-    divisionChecks.forEach((input) => {
-        input.addEventListener("change", () => {
-            const all = [...divisionChecks].find((item) => item.value === "");
-            const selected = [...divisionChecks].filter((item) => item.value !== "" && item.checked);
-            if (input.value === "" && input.checked) {
-                divisionChecks.forEach((item) => {
-                    if (item.value !== "") item.checked = false;
-                });
-            } else if (input.value !== "" && input.checked && all instanceof HTMLInputElement) {
-                all.checked = false;
-            }
-            if (selected.length > 2 && input.value !== "") {
-                input.checked = false;
-                input.setCustomValidity("Choose no more than two divisions.");
-                input.reportValidity();
-            } else {
-                input.setCustomValidity("");
-            }
-        });
-    });
-}
 
 const deleteMemberModal = document.querySelector("#deleteMemberModal");
 if (deleteMemberModal instanceof HTMLElement) {
@@ -144,7 +114,6 @@ if (activityModal instanceof HTMLElement) {
         const date = activityModal.querySelector("#activityDate");
         const endDate = activityModal.querySelector("#activityEndDate");
         const status = activityModal.querySelector("#activityStatus");
-        const registrationOpen = activityModal.querySelector("#activityRegistrationOpen");
         const description = activityModal.querySelector("#activityDescription");
         const division = activityModal.querySelector("#activityDivision");
         const title = activityModal.querySelector("#activityModalTitle");
@@ -159,9 +128,9 @@ if (activityModal instanceof HTMLElement) {
             || !(date instanceof HTMLInputElement)
             || !(endDate instanceof HTMLInputElement)
             || !(status instanceof HTMLSelectElement)
-            || !(registrationOpen instanceof HTMLInputElement)
             || !(description instanceof HTMLTextAreaElement)
-            || !(division instanceof HTMLInputElement || division instanceof HTMLSelectElement)
+            || (division !== null
+                && !(division instanceof HTMLInputElement || division instanceof HTMLSelectElement))
             || !title
             || !submit) {
             return;
@@ -182,16 +151,24 @@ if (activityModal instanceof HTMLElement) {
         endDate.value = isEdit ? trigger.dataset.activityEndDate ?? `${today}T10:00` : `${today}T10:00`;
         endDate.min = date.value;
         status.value = isEdit ? trigger.dataset.activityStatus ?? "Upcoming" : "Upcoming";
-        registrationOpen.checked = !isEdit || trigger.dataset.activityRegistrationOpen !== "False";
-        division.value = isEdit ? trigger.dataset.activityDivisionId ?? "" : "";
-        document.querySelectorAll("input[name='Form.DivisionIds']").forEach((input) => {
+        if (division instanceof HTMLInputElement || division instanceof HTMLSelectElement) {
+            division.value = isEdit ? trigger.dataset.activityDivisionId ?? "" : "";
+        }
+        const activityDivisionInputs = document.querySelectorAll("input[name='Form.DivisionIds']");
+        const hasAssignedDivisions = Boolean(
+            trigger.dataset.activityDivisionId || trigger.dataset.activityDivisionId2
+        );
+        activityDivisionInputs.forEach((input) => {
             if (input instanceof HTMLInputElement) {
-                input.checked = isEdit
-                    ? input.value === (trigger.dataset.activityDivisionId ?? "")
-                        || input.value === (trigger.dataset.activityDivisionId2 ?? "")
-                    : input.value === "";
+                input.checked = !isEdit || !hasAssignedDivisions
+                    || input.value === (trigger.dataset.activityDivisionId ?? "")
+                    || input.value === (trigger.dataset.activityDivisionId2 ?? "");
             }
         });
+        const firstDivisionInput = activityDivisionInputs[0];
+        if (firstDivisionInput instanceof HTMLInputElement) {
+            firstDivisionInput.dispatchEvent(new Event("change", { bubbles: true }));
+        }
 
         title.textContent = isEdit ? "Edit Activity" : "Add Activity";
         submit.textContent = isEdit ? "Save Changes" : "Save Activity";
@@ -257,10 +234,69 @@ const adminRoleSelect = document.querySelector("[data-admin-role]");
 const adminDivisionField = document.querySelector("[data-admin-division-field]");
 if (adminRoleSelect instanceof HTMLSelectElement && adminDivisionField instanceof HTMLElement) {
     const updateDivisionVisibility = () => {
-        adminDivisionField.hidden = adminRoleSelect.value !== "DivisionAdmin";
+        const role = adminRoleSelect.value;
+        const isSuperAdmin = role === "SuperAdmin";
+        const isDivisionAdmin = role === "DivisionAdmin";
+        const isMember = role === "Member";
+        adminDivisionField.hidden = !isDivisionAdmin;
+        const enabledField = document.querySelector("[data-admin-enabled-field]");
+        if (enabledField instanceof HTMLElement) {
+            enabledField.hidden = isMember;
+        }
+        const passwordFields = document.querySelector("[data-admin-password-fields]");
+        if (passwordFields instanceof HTMLElement) {
+            passwordFields.hidden = isMember;
+        }
+        const memberWarning = document.querySelector("[data-admin-member-warning]");
+        if (memberWarning instanceof HTMLElement) {
+            memberWarning.hidden = !isMember;
+        }
+        const saveButton = document.querySelector("[data-admin-save-button]");
+        if (saveButton instanceof HTMLButtonElement) {
+            saveButton.textContent = isMember ? "Save as Member" : "Save Account";
+        }
+        const positionLabel = document.querySelector("[data-admin-position-label]");
+        if (positionLabel instanceof HTMLElement) {
+            positionLabel.textContent = isSuperAdmin
+                ? "President"
+                : isMember
+                    ? "Member"
+                    : "Division Head";
+        }
     };
     adminRoleSelect.addEventListener("change", updateDivisionVisibility);
     updateDivisionVisibility();
+}
+
+const adminAccountForm = document.querySelector("[data-admin-account-form]");
+if (adminAccountForm instanceof HTMLFormElement) {
+    let memberConversionConfirmed = false;
+    const memberConfirmModalElement = document.querySelector("#adminMemberConfirmModal");
+    const memberConfirmButton = memberConfirmModalElement?.querySelector("[data-admin-member-confirm]");
+    const memberConfirmModal = memberConfirmModalElement instanceof HTMLElement
+        && window.bootstrap?.Modal
+        ? window.bootstrap.Modal.getOrCreateInstance(memberConfirmModalElement)
+        : null;
+
+    adminAccountForm.addEventListener("submit", (event) => {
+        const role = adminRoleSelect instanceof HTMLSelectElement
+            ? adminRoleSelect.value
+            : "";
+        if (role === "Member" && !memberConversionConfirmed) {
+            event.preventDefault();
+            if (memberConfirmModal) {
+                memberConfirmModal.show();
+            }
+        }
+    });
+
+    if (memberConfirmButton instanceof HTMLButtonElement) {
+        memberConfirmButton.addEventListener("click", () => {
+            memberConversionConfirmed = true;
+            memberConfirmModal?.hide();
+            adminAccountForm.requestSubmit();
+        });
+    }
 }
 
 const deleteActivityModal = document.querySelector("#deleteActivityModal");
@@ -290,14 +326,6 @@ if (deleteActivityModal instanceof HTMLElement) {
 }
 
 const attendanceRoster = document.querySelector("#attendanceRoster");
-const attendanceActivitySelect = document.querySelector("[data-attendance-activity-select]");
-if (attendanceActivitySelect instanceof HTMLSelectElement) {
-    attendanceActivitySelect.addEventListener("change", () => {
-        if (attendanceActivitySelect.form) {
-            attendanceActivitySelect.form.requestSubmit();
-        }
-    });
-}
 
 if (attendanceRoster instanceof HTMLElement) {
     const checkboxes = Array.from(

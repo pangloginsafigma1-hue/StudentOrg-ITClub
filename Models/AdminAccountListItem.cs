@@ -10,6 +10,16 @@ public sealed class AdminAccountListItem
 
     public string Email { get; init; } = string.Empty;
 
+    public string? StudentId { get; init; }
+
+    public string? Course { get; init; }
+
+    public string? YearLevel { get; init; }
+
+    public string? Position { get; init; }
+
+    public DateTime? DateJoined { get; init; }
+
     public string Role { get; init; } = string.Empty;
 
     public int? DivisionId { get; init; }

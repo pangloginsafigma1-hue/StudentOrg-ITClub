@@ -13,7 +13,7 @@ public interface IAttendanceRepository
         int activityId,
         CancellationToken cancellationToken);
 
-    Task<bool> SaveAsync(
+    Task<AttendanceSaveResult> SaveAsync(
         int activityId,
         IReadOnlyCollection<string> presentMemberIds,
         int? divisionId,

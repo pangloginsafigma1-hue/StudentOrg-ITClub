@@ -19,41 +19,161 @@
 }
 
 <section class="page-card attendance-card">
-    <div class="attendance-toolbar">
-        <form asp-controller="Attendance" asp-action="Index" method="get" class="attendance-selection">
-            <div class="form-field">
-                <label for="activityId">Select Activity</label>
-                <select id="activityId" name="activityId" class="form-select" data-attendance-activity-select>
-                    <option value="">Choose an activity</option>
-                    @foreach (var activity in Model.Activities)
-                    {
-                        <option value="@activity.ActivityId" selected="@(Model.SelectedActivityId == activity.ActivityId ? "selected" : null)">
-                            @activity.ActivityName — @(activity.DivisionName ?? "All divisions") — @activity.ActivityDate.ToString("MMM dd, yyyy h:mm tt") - @activity.ActivityEndDate.ToString("MMM dd, yyyy h:mm tt") @(activity.AttendanceDone ? "(Recorded)" : "")
-                        </option>
-                    }
-                </select>
+    @if (!Model.HasActivity && Model.ActivityCount > 0)
+    {
+        <div class="attendance-activities">
+            <h2>Select Activity</h2>
+            <div class="table-responsive">
+                <table class="table somams-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Activity</th>
+                            <th scope="col">Division</th>
+                            <th scope="col">Start</th>
+                            <th scope="col">End</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="actions-heading">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var activity in Model.Activities)
+                        {
+                            <tr>
+                                <td>@activity.ActivityName</td>
+                                <td>@(activity.DivisionName ?? "All divisions")</td>
+                                <td>@activity.ActivityDate.ToString("MMM d, yyyy h:mm tt")</td>
+                                <td>@activity.ActivityEndDate.ToString("MMM d, yyyy h:mm tt")</td>
+                                <td>
+                                    @if (activity.AttendanceDone)
+                                    {
+                                        <span class="status-badge status-active">Recorded</span>
+                                    }
+                                    else if (activity.CanRecordAttendance)
+                                    {
+                                        <span class="text-muted">Ready</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not started</span>
+                                    }
+                                </td>
+                                <td class="actions-cell">
+                                    @if (Model.SelectedActivityId == activity.ActivityId)
+                                    {
+                                        <span class="text-muted">Selected</span>
+                                    }
+                                    else if (activity.CanRecordAttendance)
+                                    {
+                                        <a class="btn btn-sm btn-primary"
+                                           asp-controller="Attendance"
+                                           asp-action="Index"
+                                           asp-route-activityId="@activity.ActivityId"
+                                           asp-route-page="@Model.ActivityPage">Record Attendance</a>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" disabled>
+                                            Not started
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
-            @if (Model.HasActivity)
+            @if (Model.ActivityPageCount > 1)
             {
-                <div class="form-field attendance-search-field">
-                    <label for="attendanceSearch">Search members</label>
-                    <input id="attendanceSearch" class="form-control" maxlength="100" placeholder="Search attendance records" />
-                </div>
-                <button class="btn btn-search attendance-search-button" type="button" data-attendance-search>Search</button>
+                <nav aria-label="Attendance activity pages">
+                    <ul class="pagination justify-content-end">
+                        <li class="page-item @(Model.ActivityPage <= 1 ? "disabled" : "")">
+                            <a class="page-link"
+                               asp-action="Index"
+                               asp-route-page="@(Model.ActivityPage - 1)"
+                               asp-route-activityId="@Model.SelectedActivityId">Previous</a>
+                        </li>
+                        @for (var pageNumber = 1; pageNumber <= Model.ActivityPageCount; pageNumber++)
+                        {
+                            <li class="page-item @(pageNumber == Model.ActivityPage ? "active" : "")">
+                                <a class="page-link"
+                                   asp-action="Index"
+                                   asp-route-page="@pageNumber"
+                                   asp-route-activityId="@Model.SelectedActivityId"
+                                   aria-current="@(pageNumber == Model.ActivityPage ? "page" : null)">@pageNumber</a>
+                            </li>
+                        }
+                        <li class="page-item @(Model.ActivityPage >= Model.ActivityPageCount ? "disabled" : "")">
+                            <a class="page-link"
+                               asp-action="Index"
+                               asp-route-page="@(Model.ActivityPage + 1)"
+                               asp-route-activityId="@Model.SelectedActivityId">Next</a>
+                        </li>
+                    </ul>
+                </nav>
             }
-        </form>
-    </div>
+        </div>
+    }
+
+    @if (Model.NotStartedActivityName is not null)
+    {
+        <div class="alert alert-info" role="status">
+            Attendance for <strong>@Model.NotStartedActivityName</strong> is unavailable until its start time.
+        </div>
+    }
+
+    @if (Model.HasActivity)
+    {
+        <div class="attendance-heading">
+            <div class="attendance-title-block">
+                <a class="btn btn-outline-primary attendance-back-button"
+                   asp-controller="Attendance"
+                   asp-action="Index"
+                   asp-route-page="@Model.ActivityPage">Back to activities</a>
+                <div>
+                    <h2>@Model.SelectedActivityName</h2>
+                    <p>Mark each member as present. Unchecked members will be recorded as absent.</p>
+                </div>
+            </div>
+            @if (Model.Members.Count > 0)
+            {
+                <div class="attendance-panel-tools">
+                    <div class="attendance-toolbar">
+                        <div class="form-field attendance-search-field">
+                            <label for="attendanceSearch">Search members</label>
+                            <input id="attendanceSearch" class="form-control" maxlength="100" placeholder="Search attendance records" />
+                        </div>
+                        <button class="btn btn-search attendance-search-button" type="button" data-attendance-search>Search</button>
+                    </div>
+                    <div class="attendance-controls">
+                        <div class="attendance-summary" aria-live="polite">
+                            <span class="present-count"><strong id="presentCount">@presentCount</strong> Present</span>
+                            <span class="absent-count"><strong id="absentCount">@absentCount</strong> Absent</span>
+                        </div>
+                        <div class="attendance-bulk-actions" role="group" aria-label="Bulk attendance actions">
+                            <button class="btn btn-outline-primary" type="button" data-attendance-set-all="present">
+                                Mark all present
+                            </button>
+                            <button class="btn btn-outline-secondary" type="button" data-attendance-set-all="absent">
+                                Mark all absent
+                            </button>
+                        </div>
+                        <span class="attendance-bulk-hint"> </span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 
     @if (!Model.HasActivity)
     {
         <p class="attendance-hint">
-            @(Model.Activities.Count == 0
+            @(Model.ActivityCount == 0
                 ? "There are no activities available for attendance."
                 : Model.CanEditRecordedAttendance
                     ? "Select an activity to record or edit its attendance."
                     : "Only activities without recorded attendance are listed.")
         </p>
-        @if (Model.Activities.Count == 0 && Model.DatabaseError is null)
+        @if (Model.ActivityCount == 0 && Model.DatabaseError is null)
         {
             <div class="empty-state attendance-empty">
                 <img src="~/images/ic_attendance.png" alt="" />
@@ -78,27 +198,7 @@
     {
         <form asp-controller="Attendance" asp-action="Save" method="post" id="attendanceForm">
             <input type="hidden" name="activityId" value="@Model.SelectedActivityId" />
-            <div class="attendance-heading">
-                <div>
-                    <h2>@Model.SelectedActivityName</h2>
-                    <p>Mark each member as present. Unchecked members will be recorded as absent.</p>
-                </div>
-                <div class="attendance-controls">
-                    <div class="attendance-summary" aria-live="polite">
-                        <span class="present-count"><strong id="presentCount">@presentCount</strong> Present</span>
-                        <span class="absent-count"><strong id="absentCount">@absentCount</strong> Absent</span>
-                    </div>
-                    <div class="attendance-bulk-actions" role="group" aria-label="Bulk attendance actions">
-                        <button class="btn btn-outline-primary" type="button" data-attendance-set-all="present">
-                            Mark all present
-                        </button>
-                        <button class="btn btn-outline-secondary" type="button" data-attendance-set-all="absent">
-                            Mark all absent
-                        </button>
-                    </div>
-                    <span class="attendance-bulk-hint">Applies to all members, including those hidden by search.</span>
-                </div>
-            </div>
+            <input type="hidden" name="page" value="@Model.ActivityPage" />
 
             <div class="table-responsive attendance-table-wrap">
                 <table class="table somams-table attendance-table">
@@ -176,9 +276,9 @@
     {
         <p class="attendance-hint attendance-bottom-hint">
             @(Model.SelectedActivityAttendanceDone
-                ? "Recorded attendance can be edited only by a Super Admin."
+                ? "Recorded attendance can be edited only by the President."
                 : Model.CanEditRecordedAttendance
-                    ? "Super Admins can select recorded activities to correct attendance."
+                    ? "  "
                     : "Only activities without recorded attendance are listed.")
         </p>
     }

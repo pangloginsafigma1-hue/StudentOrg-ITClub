@@ -17,6 +17,7 @@ public sealed class ReportsController(
     {
         var canChooseDivision = User.IsInRole("SuperAdmin");
         var selectedDivisionId = UserDivision.GetDivisionId(User);
+        IReadOnlyList<int> reportDivisionIds = ToDivisionList(selectedDivisionId);
         IReadOnlyList<Division> divisions = [];
         var model = new ReportsViewModel();
         try
@@ -25,20 +26,26 @@ public sealed class ReportsController(
             {
                 divisions = await divisionRepository.GetAllAsync(cancellationToken);
                 var selectedIds = NormalizeDivisionIds(divisionIds);
-                if (selectedIds.Count > 2 || selectedIds.Any(id => !divisions.Any(division => division.DivisionId == id)))
+                if (selectedIds.Any(id => !divisions.Any(division => division.DivisionId == id)))
                 {
                     return BadRequest("Choose a valid division.");
                 }
 
+                if (selectedIds.Count == divisions.Count && divisions.Count > 0)
+                {
+                    selectedIds = [];
+                }
+
+                reportDivisionIds = selectedIds;
                 selectedDivisionId = selectedIds.Count == 1 ? selectedIds[0] : null;
             }
 
             model = new ReportsViewModel
             {
-                Members = await reportsRepository.GetMembersAsync(canChooseDivision ? NormalizeDivisionIds(divisionIds) : ToDivisionList(selectedDivisionId), cancellationToken),
-                RecordedActivities = await reportsRepository.GetRecordedActivitiesAsync(canChooseDivision ? NormalizeDivisionIds(divisionIds) : ToDivisionList(selectedDivisionId), cancellationToken),
+                Members = await reportsRepository.GetMembersAsync(reportDivisionIds, cancellationToken),
+                RecordedActivities = await reportsRepository.GetRecordedActivitiesAsync(reportDivisionIds, cancellationToken),
                 Divisions = divisions,
-                DivisionIds = canChooseDivision ? NormalizeDivisionIds(divisionIds) : ToDivisionList(selectedDivisionId),
+                DivisionIds = reportDivisionIds,
                 CanChooseDivision = canChooseDivision
             };
         }
@@ -89,6 +96,48 @@ public sealed class ReportsController(
                 null,
                 selection.DivisionIds,
                 "List of Organization Members",
+                includeStatus: false,
+                cancellationToken);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return HandleDatabaseError(exception, "The members report could not be created.", divisionIds);
+        }
+        catch (MySqlException exception)
+        {
+            return HandleDatabaseError(exception, "The members report could not be loaded from MySQL.", divisionIds);
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ExportFilteredOrganizationMembers(
+        string? memberId,
+        string? position,
+        int[]? divisionIds,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(position) && !MemberLookups.Positions.Contains(position, StringComparer.Ordinal)
+            || memberId?.Length > 20)
+        {
+            return BadRequest("The selected member filters are invalid.");
+        }
+
+        try
+        {
+            var selection = await ResolveDivisionIdsAsync(divisionIds, cancellationToken);
+            if (!selection.IsValid)
+            {
+                return BadRequest("Choose a valid division.");
+            }
+
+            return await ExportMembersAsync(
+                string.IsNullOrEmpty(memberId) ? null : memberId,
+                string.IsNullOrEmpty(position) ? null : position,
+                null,
+                selection.DivisionIds,
+                "List of Organization Members",
+                includeStatus: false,
                 cancellationToken);
         }
         catch (InvalidOperationException exception)
@@ -131,6 +180,7 @@ public sealed class ReportsController(
                 string.IsNullOrEmpty(status) ? null : status,
                 selection.DivisionIds,
                 "Organization Members Report",
+                includeStatus: true,
                 cancellationToken);
         }
         catch (InvalidOperationException exception)
@@ -231,6 +281,7 @@ public sealed class ReportsController(
         string? status,
         IReadOnlyList<int> divisionIds,
         string title,
+        bool includeStatus,
         CancellationToken cancellationToken)
     {
         try
@@ -240,6 +291,7 @@ public sealed class ReportsController(
                 position,
                 status,
                 divisionIds,
+                includeStatus,
                 cancellationToken);
             return Export(report, title, "SOMAMS-Members.docx", divisionIds);
         }
@@ -269,7 +321,7 @@ public sealed class ReportsController(
         }
 
         var divisions = await divisionRepository.GetAllAsync(cancellationToken);
-        return selectedIds.Count <= 2 && selectedIds.All(id => divisions.Any(division => division.DivisionId == id))
+        return selectedIds.All(id => divisions.Any(division => division.DivisionId == id))
             ? (selectedIds, true)
             : ([], false);
     }

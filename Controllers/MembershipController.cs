@@ -86,6 +86,11 @@ public sealed class MembershipController(
         }
 
         var isEdit = !string.IsNullOrWhiteSpace(id);
+        if (isEdit)
+        {
+            model.Position = "Member";
+            ModelState.Remove(nameof(model.Position));
+        }
         if (!isEdit)
         {
             model.Status = "Active";
@@ -103,9 +108,9 @@ public sealed class MembershipController(
         {
             ModelState.AddModelError(string.Empty, "Select a valid course, year level, and position.");
         }
-        if (!UserDivision.IsSuperAdmin(User) && !isEdit && model.Position == "Division Head")
+        if (!isEdit && model.Position == "Division Head")
         {
-            ModelState.AddModelError(nameof(model.Position), "Only a Super Admin can assign the Division Head position.");
+            ModelState.AddModelError(nameof(model.Position), "Division Head cannot be assigned through member creation.");
         }
 
         try
@@ -164,6 +169,7 @@ public sealed class MembershipController(
         {
             MemberId = model.MemberId.Trim(),
             StudentName = model.StudentName.Trim(),
+            Email = string.IsNullOrWhiteSpace(model.Email) ? null : model.Email.Trim(),
             Course = model.Course,
             YearLevel = model.YearLevel,
             Position = model.Position,
@@ -240,9 +246,10 @@ public sealed class MembershipController(
         {
             MemberId = member.MemberId,
             StudentName = member.StudentName,
+            Email = member.Email,
             Course = member.Course,
             YearLevel = member.YearLevel,
-            Position = member.Position,
+            Position = "Member",
             Status = member.Status,
             DateJoined = member.DateJoined,
             DivisionId = divisionScope ?? member.DivisionId,
@@ -262,9 +269,10 @@ public sealed class MembershipController(
         {
             MemberId = submittedModel.MemberId,
             StudentName = submittedModel.StudentName,
+            Email = submittedModel.Email,
             Course = submittedModel.Course,
             YearLevel = submittedModel.YearLevel,
-            Position = submittedModel.Position,
+            Position = isEdit ? "Member" : submittedModel.Position,
             Status = submittedModel.Status,
             DateJoined = submittedModel.DateJoined,
             DivisionId = divisionScope ?? submittedModel.DivisionId,
@@ -276,7 +284,7 @@ public sealed class MembershipController(
         };
 
     private IReadOnlyList<string> GetAvailablePositions(bool isEdit) =>
-        !UserDivision.IsSuperAdmin(User) && !isEdit
+        !isEdit
             ? MemberLookups.Positions.Where(position => position != "Division Head").ToArray()
             : MemberLookups.Positions;
 

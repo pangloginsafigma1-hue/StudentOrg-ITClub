@@ -36,7 +36,7 @@ public sealed class ForgotPasswordViewModel
         if (Step == "email")
         {
             var email = Email?.Trim() ?? string.Empty;
-            if (email.Length > 100 || !MailAddress.TryCreate(email, out var address)
+            if (email.Length > 254 || !MailAddress.TryCreate(email, out var address)
                 || !string.Equals(address.Address, email, StringComparison.OrdinalIgnoreCase))
             {
                 yield return new ValidationResult("Enter a valid email address.", [nameof(Email)]);

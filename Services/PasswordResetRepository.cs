@@ -14,7 +14,7 @@ public sealed class PasswordResetRepository(MySqlConnectionFactory connectionFac
         await using var command = new MySqlCommand(
             "SELECT admin_id, email FROM admins WHERE email = @email LIMIT 1",
             connection);
-        command.Parameters.Add("@email", MySqlDbType.VarChar, 100).Value = email;
+        command.Parameters.Add("@email", MySqlDbType.VarChar, 254).Value = email;
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
         {

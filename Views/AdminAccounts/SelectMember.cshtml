@@ -1,0 +1,95 @@
+@model ITClubOrg.Models.AdminMemberPickerViewModel
+<section class="page-card admin-member-picker">
+    <div class="members-toolbar">
+        <div>
+            <h2>Select an active member</h2>
+            <p>Choose a member to prefill a Division Admin or Super Admin account. Only members without an administrator account can be selected.</p>
+        </div>
+        <a class="btn btn-outline-primary" asp-action="Create">Back</a>
+    </div>
+
+    @if (Model.DatabaseError is not null)
+    {
+        <div class="alert alert-danger" role="alert">@Model.DatabaseError</div>
+    }
+    @if (!Model.CanCreateSuperAdmin)
+    {
+        <div class="alert alert-info" role="status">The maximum of two Super Admin accounts has been reached. Members can still be selected for available Division Admin roles.</div>
+    }
+
+    <form asp-action="SelectMember" method="get" class="member-search admin-member-search">
+        <label class="visually-hidden" for="adminMemberSearch">Search active members</label>
+        <input id="adminMemberSearch" name="search" class="form-control" value="@Model.Search"
+               maxlength="100" placeholder="Search by name, member ID, position, or division" />
+        <button class="btn btn-search" type="submit">Search</button>
+    </form>
+
+    @if (Model.Candidates.Count > 0)
+    {
+        <div class="table-responsive">
+            <table class="table somams-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Member</th>
+                        <th scope="col">Member ID</th>
+                        <th scope="col">Position</th>
+                        <th scope="col">Division</th>
+                        <th scope="col" class="actions-heading">Create account</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var candidate in Model.Candidates)
+                    {
+                        <tr>
+                            <td>@candidate.FullName</td>
+                            <td>@candidate.MemberId</td>
+                            <td>@candidate.Position</td>
+                            <td>@(candidate.DivisionName ?? "No division")</td>
+                            <td class="actions-cell">
+                                <div class="admin-member-actions">
+                                    <div class="admin-member-role-slot">
+                                        @if (candidate.CanBeDivisionAdmin)
+                                        {
+                                            <a class="btn btn-sm btn-primary"
+                                               asp-action="CreateFromMember"
+                                               asp-route-memberId="@candidate.MemberId"
+                                               asp-route-role="DivisionAdmin">Division Admin</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                @(candidate.DivisionId is null ? "No division assigned" : "Division admin already assigned.")
+                                            </span>
+                                        }
+                                        <span class="admin-member-divider" aria-hidden="true">|</span>
+                                    </div>
+                                    <div class="admin-member-role-slot">
+                                        @if (Model.CanCreateSuperAdmin && candidate.CanBeSuperAdmin)
+                                        {
+                                            <a class="btn btn-sm btn-outline-primary"
+                                               asp-action="CreateFromMember"
+                                               asp-route-memberId="@candidate.MemberId"
+                                               asp-route-role="SuperAdmin">Super Admin</a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">
+                                                @(Model.CanCreateSuperAdmin
+                                                    ? "Admin account already exists"
+                                                    : "Super Admin limit reached")
+                                            </span>
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else if (Model.DatabaseError is null)
+    {
+        <p class="empty-state">@(Model.Search.Length == 0 ? "No active members are available." : "No active members match your search.")</p>
+    }
+</section>

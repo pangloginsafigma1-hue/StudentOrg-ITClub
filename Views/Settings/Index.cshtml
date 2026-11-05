@@ -52,6 +52,51 @@
                     <input asp-for="Email" class="form-control" autocomplete="email" />
                     <span asp-validation-for="Email" class="field-error"></span>
                 </div>
+                <div class="form-field">
+                    <label asp-for="StudentId"></label>
+                    <input asp-for="StudentId" class="form-control" maxlength="20" />
+                    <span asp-validation-for="StudentId" class="field-error"></span>
+                </div>
+                <div class="form-field">
+                    <label asp-for="Course"></label>
+                    <select asp-for="Course" class="form-select">
+                        <option value="">Select course</option>
+                        @foreach (var course in ITClubOrg.Models.MemberLookups.Courses)
+                        {
+                            <option value="@course">@course</option>
+                        }
+                    </select>
+                    <span asp-validation-for="Course" class="field-error"></span>
+                </div>
+                <div class="form-field">
+                    <label asp-for="YearLevel"></label>
+                    <select asp-for="YearLevel" class="form-select">
+                        <option value="">Select year level</option>
+                        @foreach (var yearLevel in ITClubOrg.Models.MemberLookups.YearLevels)
+                        {
+                            <option value="@yearLevel">@yearLevel</option>
+                        }
+                    </select>
+                    <span asp-validation-for="YearLevel" class="field-error"></span>
+                </div>
+                <div class="form-field">
+                    <label asp-for="Position"></label>
+                    <input asp-for="Position" class="form-control" maxlength="50" />
+                    <span asp-validation-for="Position" class="field-error"></span>
+                </div>
+                <div class="form-field">
+                    <label asp-for="DateJoined"></label>
+                    <input asp-for="DateJoined" class="form-control" type="date" />
+                    <span asp-validation-for="DateJoined" class="field-error"></span>
+                </div>
+                <div class="form-field">
+                    <label>Role</label>
+                    <span class="form-control-plaintext">@Model.Role</span>
+                </div>
+                <div class="form-field">
+                    <label>Division</label>
+                    <span class="form-control-plaintext">@(Model.DivisionName ?? "No division assigned")</span>
+                </div>
                 <hr />
                 <h3>Change Password</h3>
                 <p class="settings-hint">Leave both password fields blank to keep your current password.</p>

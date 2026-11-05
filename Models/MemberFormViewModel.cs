@@ -24,6 +24,11 @@ public sealed class MemberFormViewModel
     [Display(Name = "Student Name")]
     public string StudentName { get; set; } = string.Empty;
 
+    [StringLength(254)]
+    [EmailAddress]
+    [Display(Name = "Email address")]
+    public string? Email { get; set; }
+
     [Required]
     [StringLength(50)]
     public string Course { get; set; } = string.Empty;

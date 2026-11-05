@@ -143,9 +143,14 @@
                 <span class="title-accent" aria-hidden="true"></span>
             </div>
             <div class="signed-in">
-                <span>Signed in as</span>
-                <strong>@User.Identity?.Name</strong>
-                <small>@(User.FindFirst("division_name")?.Value ?? "Super Admin")</small>
+                <a class="signed-in-profile" asp-controller="Settings" asp-action="Index" aria-label="Edit administrator profile">
+                    <img class="signed-in-avatar" src="@Url.Action("Photo", "Settings")" alt="" />
+                    <span class="signed-in-details">
+                        <span>Signed in as</span>
+                        <strong>@User.Identity?.Name</strong>
+                        <small>@(User.FindFirst("division_name")?.Value ?? "President")</small>
+                    </span>
+                </a>
             </div>
         </header>
 
@@ -175,6 +180,7 @@
     </div>
 
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/notifications.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

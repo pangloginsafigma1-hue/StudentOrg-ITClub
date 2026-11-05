@@ -12,5 +12,7 @@ public sealed class AttendanceActivityOption
 
     public bool AttendanceDone { get; init; }
 
+    public bool CanRecordAttendance { get; init; }
+
     public string? DivisionName { get; init; }
 }

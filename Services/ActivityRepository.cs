@@ -73,6 +73,30 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
         return await reader.ReadAsync(cancellationToken) ? MapActivity(reader) : null;
     }
 
+    public async Task<bool> IsNameInUseAsync(
+        string activityName,
+        int exceptActivityId,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = new MySqlCommand(
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM activities
+                WHERE activity_name = @activityName
+                  AND (@exceptActivityId = 0 OR activity_id <> @exceptActivityId)
+            )
+            """,
+            connection);
+        command.Parameters.Add("@activityName", MySqlDbType.VarChar, 150).Value = activityName;
+        command.Parameters.Add("@exceptActivityId", MySqlDbType.Int32).Value = exceptActivityId;
+
+        return Convert.ToBoolean(await command.ExecuteScalarAsync(cancellationToken));
+    }
+
     public async Task SaveAsync(Activity activity, int? divisionId, CancellationToken cancellationToken)
     {
         if (divisionId is int assignedDivisionId
@@ -102,7 +126,6 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
               activity_end_at = @activityEndDate,
               status = CASE WHEN attendance_done = 1 THEN 'Completed' ELSE @status END,
                   description = @description,
-              registration_open = @registrationOpen,
               division_id = @activityDivisionId,
                   division_id_2 = @activityDivisionId2
               WHERE activity_id = @activityId
@@ -113,7 +136,10 @@ public sealed class ActivityRepository(MySqlConnectionFactory connectionFactory)
             (object?)activity.DivisionId ?? DBNull.Value;
         command.Parameters.Add("@activityDivisionId2", MySqlDbType.Int32).Value =
             (object?)activity.DivisionId2 ?? DBNull.Value;
-        command.Parameters.Add("@registrationOpen", MySqlDbType.Bool).Value = activity.IsRegistrationOpen;
+        if (activity.ActivityId == 0)
+        {
+            command.Parameters.Add("@registrationOpen", MySqlDbType.Bool).Value = activity.IsRegistrationOpen;
+        }
         if (activity.ActivityId > 0)
         {
             command.Parameters.Add("@activityId", MySqlDbType.Int32).Value = activity.ActivityId;
